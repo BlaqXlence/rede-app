@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "REDE",
+    "slug": "rede",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A1A1A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ug.rede.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "REDE needs your location to show events near you.",
+        "NSPhotoLibraryUsageDescription": "REDE needs access to your photos.",
+        "NSCameraUsageDescription": "REDE needs your camera for profile photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FF6600"
+      },
+      "package": "ug.rede.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      ["expo-location", {
+        "locationWhenInUsePermission": "REDE needs your location to show events near you."
+      }]
+    ]
+  }
+}
