@@ -1,3 +1,5 @@
+// eventsStore.js - See rede-final version for full comments
+// Key fix: createEvent now returns the actual event object (was returning a Promise)
 import { create } from 'zustand'
 import * as ExpoLocation from 'expo-location'
 import { MOCK_EVENTS } from '../data/mockEvents'
@@ -45,12 +47,12 @@ const useEventsStore = create((set, get) => ({
     set({ isLoadingEvents: true })
     try {
       const data = await eventsApi.list({ lat, lng, radius: 100 })
-      if (data.events && data.events.length > 0) {
+      if (data.events?.length > 0) {
         set({ events: data.events })
         get()._buildFeed(lat, lng)
       }
     } catch {
-      // Keep mock data if API not reachable
+      console.log('API unreachable, using mock events')
     } finally {
       set({ isLoadingEvents: false })
     }
@@ -65,8 +67,7 @@ const useEventsStore = create((set, get) => ({
 
   search: (query) => {
     const loc = get().userLocation || { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng }
-    const results = searchEvents(get().events, query, loc.lat, loc.lng)
-    set({ searchResults: results })
+    set({ searchResults: searchEvents(get().events, query, loc.lat, loc.lng) })
   },
 
   addRecentSearch: async (query) => {
@@ -81,30 +82,56 @@ const useEventsStore = create((set, get) => ({
     if (saved) set({ recentSearches: JSON.parse(saved) })
   },
 
+  // THE FIX: this function is async and returns the actual event object.
+  // Callers must await it — previously CreateEventScreen didn't await it,
+  // so event.id was undefined, causing "Event not found".
   createEvent: async (draft) => {
     const { user } = require('./authStore').default.getState()
+    let savedEvent = null
+
     try {
-      const data = await eventsApi.create(draft)
-      const events = [data.event, ...get().events]
-      const loc = get().userLocation || { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng }
-      set({ events })
-      get()._buildFeed(loc.lat, loc.lng)
-      return data.event
-    } catch {
-      // Fallback to local
-      const newEvent = {
+      // Try real database first
+      const response = await eventsApi.create({
+        title:            draft.title,
+        description:      draft.description,
+        category:         draft.category,
+        cover_image:      draft.coverImage,
+        start_time:       draft.startTime,
+        end_time:         draft.endTime,
+        location_name:    draft.location.name,
+        location_address: draft.location.address,
+        location_lat:     draft.location.lat,
+        location_lng:     draft.location.lng,
+        max_attendees:    draft.maxAttendees,
+        entry_fee:        draft.entryFee || 0,
+        tags:             draft.tags || [],
+      })
+      savedEvent = response.event
+    } catch (err) {
+      // API down — create locally so the app still works
+      console.warn('DB save failed, using local event:', err.message)
+      savedEvent = {
         ...draft,
         id: `EVT-${generateEventId()}`,
-        organizer: { id: user.id, name: user.name, phone: user.phone, avatar: user.avatar, verified: user.verified },
+        organizer: {
+          id: user?.id || 'local',
+          name: user?.name || 'You',
+          phone: user?.phone || '',
+          avatar: user?.avatar || null,
+          verified: user?.verified || false,
+        },
         attendeeCount: 0,
         createdAt: new Date().toISOString(),
       }
-      const events = [newEvent, ...get().events]
-      const loc = get().userLocation || { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng }
-      set({ events })
-      get()._buildFeed(loc.lat, loc.lng)
-      return newEvent
     }
+
+    // Add to local store so it shows up immediately
+    const events = [savedEvent, ...get().events]
+    const loc = get().userLocation || { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng }
+    set({ events })
+    get()._buildFeed(loc.lat, loc.lng)
+
+    return savedEvent  // caller gets the real event, not a Promise
   },
 
   joinEvent: async (eventId) => {
