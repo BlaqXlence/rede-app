@@ -1,12 +1,19 @@
+/**
+ * api.js
+ *
+ * CRITICAL FIX: Token is now read as a plain string.
+ * Previously JSON.parse(token) added extra quotes to the Bearer token.
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const BASE_URL = 'https://web-production-e695b.up.railway.app/api/v1'
 
 async function getHeaders() {
+  // Read plain string — no JSON.parse
   const token = await AsyncStorage.getItem('rede:token')
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${JSON.parse(token)}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
 }
 
@@ -38,4 +45,10 @@ export const eventsApi = {
   leave:     (id)       => request('POST',   `/events/${id}/leave`),
   mine:      ()         => request('GET',    '/events/mine'),
   attending: ()         => request('GET',    '/events/attending'),
+}
+
+export const reviewsApi = {
+  get:    (eventId)              => request('GET',  `/events/${eventId}/reviews`),
+  create: (eventId, rating, comment) =>
+    request('POST', `/events/${eventId}/reviews`, { rating, comment }),
 }

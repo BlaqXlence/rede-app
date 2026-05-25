@@ -1,56 +1,68 @@
 export const APP_NAME = 'REDE'
 
-export const DEFAULT_LOCATION = {
-  lat: 0.3476,
-  lng: 32.5825,
-  city: 'Kampala',
-  country: 'Uganda',
-}
-
-export const UGANDA_PHONE_CODE = '+256'
-export const NEARBY_RADIUS_KM = 15
-export const MAX_DISCOVERY_RADIUS_KM = 100
-
-// Categories — each has a unique color pair for dark theme
-export const EVENT_CATEGORIES = [
-  { id: 'all',       label: 'All',           accent: '#FF6600', dark: '#CC4400' },
-  { id: 'party',     label: 'Parties',       accent: '#E91E63', dark: '#880E4F' },
-  { id: 'music',     label: 'Music',         accent: '#9C27B0', dark: '#4A148C' },
-  { id: 'sports',    label: 'Sports',        accent: '#1976D2', dark: '#0D47A1' },
-  { id: 'dancing',   label: 'Dancing',       accent: '#FF5722', dark: '#BF360C' },
-  { id: 'games',     label: 'Table Games',   accent: '#FFA000', dark: '#E65100' },
-  { id: 'food',      label: 'Food & Drinks', accent: '#2E7D32', dark: '#1B5E20' },
-  { id: 'outdoor',   label: 'Outdoor',       accent: '#00897B', dark: '#004D40' },
-  { id: 'art',       label: 'Art & Culture', accent: '#5C6BC0', dark: '#283593' },
-  { id: 'wellness',  label: 'Wellness',      accent: '#00ACC1', dark: '#006064' },
-  { id: 'comedy',    label: 'Comedy',        accent: '#F9A825', dark: '#F57F17' },
-  { id: 'kids',      label: 'Kids',          accent: '#039BE5', dark: '#01579B' },
-  { id: 'fashion',   label: 'Fashion',       accent: '#D81B60', dark: '#880E4F' },
-  { id: 'tech',      label: 'Tech & Business', accent: '#546E7A', dark: '#263238' },
+// Major Uganda cities for the city selector
+export const UGANDA_CITIES = [
+  { id: 'kampala',  name: 'Kampala',  lat: 0.3476,  lng: 32.5825 },
+  { id: 'entebbe',  name: 'Entebbe',  lat: 0.0512,  lng: 32.4637 },
+  { id: 'jinja',    name: 'Jinja',    lat: -0.4289, lng: 33.2041 },
+  { id: 'mbarara',  name: 'Mbarara',  lat: -0.6072, lng: 30.6545 },
+  { id: 'gulu',     name: 'Gulu',     lat: 2.7747,  lng: 32.2990 },
+  { id: 'mbale',    name: 'Mbale',    lat: 1.0796,  lng: 34.1750 },
+  { id: 'masaka',   name: 'Masaka',   lat: -0.3136, lng: 31.7358 },
+  { id: 'fort_portal', name: 'Fort Portal', lat: 0.6710, lng: 30.2750 },
+  { id: 'kabale',   name: 'Kabale',   lat: -1.2490, lng: 29.9890 },
+  { id: 'lira',     name: 'Lira',     lat: 2.2499,  lng: 32.8998 },
+  { id: 'arua',     name: 'Arua',     lat: 3.0200,  lng: 30.9100 },
+  { id: 'soroti',   name: 'Soroti',   lat: 1.7150,  lng: 33.6110 },
 ]
 
-// Sections shown on home feed
+export const DEFAULT_CITY = { ...UGANDA_CITIES[0], city: UGANDA_CITIES[0].name }
+
+// Well-known Kampala areas for location picker
+export const KAMPALA_AREAS = [
+  'Kololo', 'Nakasero', 'Ntinda', 'Muyenga', 'Bugolobi',
+  'Kisementi', 'Bukoto', 'Munyonyo', 'Naguru', 'Lugogo',
+  'Wandegeya', 'Makerere', 'Kabalagala', 'Kansanga', 'Luzira',
+  'Kireka', 'Naalya', 'Kyanja', 'Gayaza', 'Entebbe Road',
+]
+
+export const EVENT_CATEGORIES = [
+  { id: 'all',      label: 'All' },
+  { id: 'party',    label: 'Parties' },
+  { id: 'music',    label: 'Music' },
+  { id: 'sports',   label: 'Sports' },
+  { id: 'dancing',  label: 'Dancing' },
+  { id: 'games',    label: 'Table Games' },
+  { id: 'food',     label: 'Food & Drinks' },
+  { id: 'outdoor',  label: 'Outdoor' },
+  { id: 'art',      label: 'Art & Culture' },
+  { id: 'wellness', label: 'Wellness' },
+  { id: 'comedy',   label: 'Comedy' },
+  { id: 'kids',     label: 'Kids' },
+  { id: 'fashion',  label: 'Fashion' },
+  { id: 'tech',     label: 'Tech & Business' },
+]
+
 export const HOME_SECTIONS = [
-  { id: 'happeningNow', title: 'Happening Now',    categoryId: null },
-  { id: 'party',        title: 'Parties',          categoryId: 'party' },
-  { id: 'sports',       title: 'Sports',           categoryId: 'sports' },
-  { id: 'music',        title: 'Music & Concerts', categoryId: 'music' },
-  { id: 'food',         title: 'Food & Drinks',    categoryId: 'food' },
-  { id: 'dancing',      title: 'Dancing',          categoryId: 'dancing' },
-  { id: 'wellness',     title: 'Wellness',         categoryId: 'wellness' },
-  { id: 'comedy',       title: 'Comedy',           categoryId: 'comedy' },
-  { id: 'outdoor',      title: 'Outdoor',          categoryId: 'outdoor' },
-  { id: 'games',        title: 'Table Games',      categoryId: 'games' },
-  { id: 'art',          title: 'Art & Culture',    categoryId: 'art' },
-  { id: 'kids',         title: 'Kids & Family',    categoryId: 'kids' },
-  { id: 'tech',         title: 'Tech & Business',  categoryId: 'tech' },
+  { id: 'happeningNow', title: 'Happening Now',     categoryId: null },
+  { id: 'party',        title: 'Parties',           categoryId: 'party' },
+  { id: 'sports',       title: 'Sports',            categoryId: 'sports' },
+  { id: 'music',        title: 'Music & Concerts',  categoryId: 'music' },
+  { id: 'food',         title: 'Food & Drinks',     categoryId: 'food' },
+  { id: 'dancing',      title: 'Dancing',           categoryId: 'dancing' },
+  { id: 'wellness',     title: 'Wellness',          categoryId: 'wellness' },
+  { id: 'comedy',       title: 'Comedy',            categoryId: 'comedy' },
+  { id: 'outdoor',      title: 'Outdoor',           categoryId: 'outdoor' },
+  { id: 'games',        title: 'Table Games',       categoryId: 'games' },
+  { id: 'art',          title: 'Art & Culture',     categoryId: 'art' },
+  { id: 'kids',         title: 'Kids & Family',     categoryId: 'kids' },
+  { id: 'tech',         title: 'Tech & Business',   categoryId: 'tech' },
 ]
 
 export const EVENT_RULES = {
   titleMin: 5, titleMax: 80,
   descriptionMin: 50, descriptionMax: 1000,
   minLeadTimeHours: 2, maxLeadTimeDays: 180,
-  minAttendees: 2, maxAttendees: 10000,
 }
 
 export const SCORE_WEIGHTS = {
