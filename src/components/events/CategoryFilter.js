@@ -1,5 +1,10 @@
+/**
+ * CategoryFilter.js
+ * Horizontal scrollable category chips — each with its own accent color.
+ * Designed for small phone screens — compact, no tall icons.
+ */
 import React from 'react'
-import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native'
+import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-native'
 import colors from '../../constants/colors'
 import { EVENT_CATEGORIES } from '../../constants/config'
 
@@ -16,11 +21,15 @@ export default function CategoryFilter({ selected, onSelect }) {
           <TouchableOpacity
             key={cat.id}
             onPress={() => onSelect(cat.id)}
-            style={[styles.chip, active && styles.chipActive]}
+            style={[
+              styles.chip,
+              active && { backgroundColor: cat.accent, borderColor: cat.accent },
+            ]}
             activeOpacity={0.75}
           >
-            <Text style={styles.emoji}>{cat.emoji}</Text>
-            <Text style={[styles.label, active && styles.labelActive]}>{cat.label}</Text>
+            <Text style={[styles.label, active && styles.labelActive]}>
+              {cat.label}
+            </Text>
           </TouchableOpacity>
         )
       })}
@@ -30,27 +39,17 @@ export default function CategoryFilter({ selected, onSelect }) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     gap: 8,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 5,
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  emoji: {
-    fontSize: 14,
+    paddingVertical: 7,
   },
   label: {
     fontSize: 13,

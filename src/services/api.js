@@ -13,8 +13,7 @@ async function getHeaders() {
 async function request(method, path, body) {
   const headers = await getHeaders()
   const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
+    method, headers,
     body: body ? JSON.stringify(body) : undefined,
   })
   const data = await res.json()

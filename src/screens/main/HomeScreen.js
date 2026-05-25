@@ -1,7 +1,15 @@
+/**
+ * HomeScreen.js
+ * Biglion-style home feed:
+ * - Logo + location header
+ * - Search bar
+ * - Horizontal category chips
+ * - Sections per category: 2-column grid + "See all" button
+ */
 import React, { useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, Dimensions, FlatList,
+  StyleSheet, RefreshControl, FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import colors from '../../constants/colors'
@@ -11,48 +19,53 @@ import EventCard from '../../components/events/EventCard'
 import CategoryFilter from '../../components/events/CategoryFilter'
 import { HOME_SECTIONS, EVENT_CATEGORIES } from '../../constants/config'
 
-const INITIAL_VISIBLE = 4  // 2 rows of 2
+// How many events to show per section before "See all"
+const PREVIEW_COUNT = 4
 
-function SectionHeader({ title, count, onSeeAll }) {
+function SectionHeader({ title, count, accent, onSeeAll }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {count > 0 && (
         <TouchableOpacity onPress={onSeeAll} style={styles.seeAllBtn}>
-          <Text style={styles.seeAllText}>See all  ›</Text>
+          <Text style={styles.seeAllText}>ALL  ›</Text>
         </TouchableOpacity>
       )}
     </View>
   )
 }
 
-// 2-column grid for a list of events
 function EventGrid({ events, onPress }) {
   return (
     <View style={styles.grid}>
-      {events.map(event => (
-        <EventCard key={event.id} event={event} onPress={onPress} />
+      {events.map(e => (
+        <EventCard key={e.id} event={e} onPress={onPress} />
       ))}
     </View>
   )
 }
 
-// A single category section: header + 2-col grid + "show more" button
 function CategorySection({ title, categoryId, events, onPress, onSeeAll }) {
   const [expanded, setExpanded] = useState(false)
   if (!events || events.length === 0) return null
 
-  const visible = expanded ? events : events.slice(0, INITIAL_VISIBLE)
-  const hasMore = events.length > INITIAL_VISIBLE
+  const shown  = expanded ? events : events.slice(0, PREVIEW_COUNT)
+  const hasMore = events.length > PREVIEW_COUNT
+  const cat    = EVENT_CATEGORIES.find(c => c.id === categoryId)
 
   return (
     <View style={styles.section}>
-      <SectionHeader title={title} count={events.length} onSeeAll={onSeeAll} />
-      <EventGrid events={visible} onPress={onPress} />
+      <SectionHeader
+        title={title}
+        count={events.length}
+        accent={cat?.accent}
+        onSeeAll={onSeeAll}
+      />
+      <EventGrid events={shown} onPress={onPress} />
       {hasMore && !expanded && (
         <TouchableOpacity style={styles.showMoreBtn} onPress={() => setExpanded(true)}>
           <Text style={styles.showMoreText}>
-            Show all {events.length} {title.replace(/[^\w\s]/gi, '').trim()} →
+            See all {events.length} offers
           </Text>
         </TouchableOpacity>
       )}
@@ -64,7 +77,7 @@ export default function HomeScreen({ navigation }) {
   const { user } = useAuthStore()
   const {
     feed, locationName, selectedCategory,
-    setCategory, requestLocation, events,
+    setCategory, requestLocation,
   } = useEventsStore()
 
   const [refreshing, setRefreshing] = useState(false)
@@ -76,78 +89,76 @@ export default function HomeScreen({ navigation }) {
   }
 
   function openEvent(event) {
-    navigation.navigate('EventDetail', { eventId: event.id })
+    navigation.navigate('EventDetail', { eventId: event.id, event })
   }
 
   function openCategory(categoryId, title) {
     navigation.navigate('CategoryEvents', { categoryId, title })
   }
 
-  function goToSearch() {
-    navigation.navigate('Search')
-  }
-
-  // Filter all events by selected category or show all
-  const allEvents = feed.all || []
-  const filteredEvents = selectedCategory === 'all'
-    ? allEvents
-    : allEvents.filter(e => e.category === selectedCategory)
-
   const isFiltered = selectedCategory !== 'all'
+  const allEvents  = feed.all || []
+  const filtered   = isFiltered
+    ? allEvents.filter(e => e.category === selectedCategory)
+    : allEvents
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Top header */}
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.logo}>REDE</Text>
-          <TouchableOpacity onPress={requestLocation} style={styles.locationBtn}>
-            <Text style={styles.locationText}>📍 {locationName}</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.logo}>REDE</Text>
+        <TouchableOpacity onPress={requestLocation} style={styles.locationPill}>
+          <Text style={styles.locationPin}>📍</Text>
+          <Text style={styles.locationName} numberOfLines={1}>{locationName}</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Search bar */}
-      <TouchableOpacity style={styles.searchBar} onPress={goToSearch} activeOpacity={0.8}>
+      {/* Search bar — tappable, goes to search screen */}
+      <TouchableOpacity
+        style={styles.searchBar}
+        onPress={() => navigation.navigate('Search')}
+        activeOpacity={0.8}
+      >
         <Text style={styles.searchIcon}>🔍</Text>
-        <Text style={styles.searchPlaceholder}>Search events in {locationName}...</Text>
+        <Text style={styles.searchPlaceholder}>
+          Search events in {locationName}...
+        </Text>
       </TouchableOpacity>
 
-      {/* Category filter chips */}
+      {/* Category chips */}
       <CategoryFilter selected={selectedCategory} onSelect={setCategory} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
         }
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.feedContent}
       >
-        {/* When a specific category is selected — show filtered grid */}
+        {/* Filtered view — when a category chip is selected */}
         {isFiltered ? (
           <View style={styles.section}>
             <Text style={styles.filteredTitle}>
-              {EVENT_CATEGORIES.find(c => c.id === selectedCategory)?.emoji}{' '}
               {EVENT_CATEGORIES.find(c => c.id === selectedCategory)?.label}
-              {' '}({filteredEvents.length})
+              {filtered.length > 0 ? ` (${filtered.length})` : ''}
             </Text>
-            {filteredEvents.length > 0 ? (
-              <EventGrid events={filteredEvents} onPress={openEvent} />
-            ) : (
-              <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>🎭</Text>
-                <Text style={styles.emptyText}>No events in this category yet</Text>
-              </View>
-            )}
+            {filtered.length > 0
+              ? <EventGrid events={filtered} onPress={openEvent} />
+              : <Text style={styles.emptyText}>No events in this category yet</Text>
+            }
           </View>
         ) : (
-          // Default: show all category sections like Biglion
+          // Default home — section per category like Biglion
           <>
-            {/* Happening Now section */}
-            {feed.happeningNow && feed.happeningNow.length > 0 && (
+            {/* Happening Now */}
+            {feed.happeningNow?.length > 0 && (
               <View style={styles.section}>
                 <SectionHeader
-                  title="🔴 Happening Now"
+                  title="Happening Now"
                   count={feed.happeningNow.length}
                   onSeeAll={() => openCategory('all', 'Happening Now')}
                 />
@@ -156,26 +167,24 @@ export default function HomeScreen({ navigation }) {
             )}
 
             {/* One section per category */}
-            {HOME_SECTIONS.filter(s => s.categoryId !== null).map(section => {
-              const sectionEvents = feed.byCategory?.[section.categoryId] || []
-              return (
-                <CategorySection
-                  key={section.id}
-                  title={section.title}
-                  categoryId={section.categoryId}
-                  events={sectionEvents}
-                  onPress={openEvent}
-                  onSeeAll={() => openCategory(section.categoryId, section.title)}
-                />
-              )
-            })}
+            {HOME_SECTIONS.filter(s => s.categoryId !== null).map(section => (
+              <CategorySection
+                key={section.id}
+                title={section.title}
+                categoryId={section.categoryId}
+                events={feed.byCategory?.[section.categoryId] || []}
+                onPress={openEvent}
+                onSeeAll={() => openCategory(section.categoryId, section.title)}
+              />
+            ))}
 
+            {/* Empty state */}
             {allEvents.length === 0 && (
               <View style={styles.empty}>
                 <Text style={styles.emptyEmoji}>🎭</Text>
                 <Text style={styles.emptyTitle}>No events near you yet</Text>
                 <Text style={styles.emptyText}>
-                  Be the first to create one in {locationName}!
+                  Be the first to create one!
                 </Text>
               </View>
             )}
@@ -193,18 +202,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 6,
     paddingBottom: 8,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
   },
   logo: {
     fontSize: 26,
@@ -212,42 +218,52 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: -0.5,
   },
-  locationBtn: {
+  locationPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
+    gap: 4,
+    maxWidth: 160,
   },
-  locationText: {
+  locationPin: {
+    fontSize: 12,
+  },
+  locationName: {
     fontSize: 12,
     color: colors.textSecondary,
     fontWeight: '600',
   },
+
+  // Search
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: 10,
     marginHorizontal: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    gap: 8,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  searchIcon: {
-    fontSize: 16,
-  },
+  searchIcon: { fontSize: 15 },
   searchPlaceholder: {
     fontSize: 14,
     color: colors.textHint,
     flex: 1,
   },
-  scrollContent: {
+
+  // Feed
+  feedContent: {
+    paddingTop: 4,
     paddingBottom: 20,
   },
+
+  // Section
   section: {
     paddingHorizontal: 16,
     marginTop: 8,
@@ -256,60 +272,64 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 16,
+    marginBottom: 10,
+    marginTop: 14,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: colors.textPrimary,
     letterSpacing: -0.2,
   },
-  seeAllBtn: {
-    paddingHorizontal: 4,
-  },
+  seeAllBtn: { paddingHorizontal: 2 },
   seeAllText: {
     fontSize: 13,
     color: colors.textSecondary,
     fontWeight: '600',
   },
+
+  // 2-column grid
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
+
+  // "See all X offers" button — grey like Biglion
   showMoreBtn: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingVertical: 13,
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     marginTop: 4,
     borderWidth: 1,
     borderColor: colors.border,
   },
   showMoreText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
+
+  // Filtered header
   filteredTitle: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '800',
     color: colors.textPrimary,
-    marginTop: 12,
-    marginBottom: 14,
+    marginTop: 10,
+    marginBottom: 12,
   },
+
+  // Empty state
   empty: {
     alignItems: 'center',
     paddingVertical: 60,
+    paddingHorizontal: 32,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: colors.textPrimary,
     marginBottom: 6,
@@ -318,6 +338,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: 32,
+    lineHeight: 20,
+    marginTop: 4,
   },
 })
