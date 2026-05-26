@@ -1,9 +1,10 @@
 import React from 'react'
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native'
-import colors from '../../constants/colors'
+import useThemeStore from '../../store/themeStore'
 import { EVENT_CATEGORIES } from '../../constants/config'
 
 export default function CategoryFilter({ selected, onSelect }) {
+  const { colors } = useThemeStore()
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {EVENT_CATEGORIES.map(cat => {
@@ -13,10 +14,15 @@ export default function CategoryFilter({ selected, onSelect }) {
           <TouchableOpacity
             key={cat.id}
             onPress={() => onSelect(cat.id)}
-            style={[styles.chip, active && { backgroundColor: accent, borderColor: accent }]}
+            style={[
+              styles.chip,
+              { backgroundColor: active ? accent : colors.surface, borderColor: active ? accent : colors.border }
+            ]}
             activeOpacity={0.75}
           >
-            <Text style={[styles.label, active && styles.labelActive]}>{cat.label}</Text>
+            <Text style={[styles.label, { color: active ? '#fff' : colors.textSecondary }]}>
+              {cat.label}
+            </Text>
           </TouchableOpacity>
         )
       })}
@@ -26,10 +32,6 @@ export default function CategoryFilter({ selected, onSelect }) {
 
 const styles = StyleSheet.create({
   row: { paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
-  chip: {
-    borderRadius: 20, borderWidth: 1.5, borderColor: colors.border,
-    backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 7,
-  },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  labelActive: { color: '#fff' },
+  chip: { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 7 },
+  label: { fontSize: 13, fontWeight: '600' },
 })

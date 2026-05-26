@@ -1,12 +1,7 @@
 /**
  * authStore.js
- *
- * CRITICAL FIX: Token is stored as a plain string now, not JSON-stringified.
- * Previously: AsyncStorage.setItem('rede:token', JSON.stringify(token))
- * This caused getItem to return '"mock_token_..."' with extra quotes,
- * making the Authorization header invalid.
- *
- * Now: token stored as plain string, retrieved as plain string.
+ * Token stored as plain string — no JSON.parse wrapping.
+ * Phone is already in +256XXXXXXXXX format from PhoneScreen.
  */
 import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -29,23 +24,17 @@ const useAuthStore = create((set, get) => ({
         AsyncStorage.getItem(KEYS.TOKEN),
       ])
       const user = userRaw ? JSON.parse(userRaw) : null
-      set({
-        user,
-        isAuthenticated: !!(user && token),
-        isLoading: false,
-      })
+      set({ user, isAuthenticated: !!(user && token), isLoading: false })
     } catch {
       set({ isLoading: false })
     }
   },
 
   sendOtp: async (phone) => {
+    // phone is already in +256XXXXXXXXX format from PhoneScreen
     try {
       const data = await authApi.sendOtp(phone)
-      // In dev mode the API returns dev_code — log it for easy access
-      if (data.dev_code) {
-        console.log(`\n📱 Your OTP code: ${data.dev_code}\n`)
-      }
+      if (data.dev_code) console.log(`\n📱 OTP: ${data.dev_code}\n`)
       return data
     } catch (err) {
       throw new Error(err.message || 'Could not send code')
@@ -55,11 +44,9 @@ const useAuthStore = create((set, get) => ({
   verifyOtp: async (phone, code) => {
     try {
       const data = await authApi.verifyOtp(phone, code)
-
       // Store token as plain string — no JSON.stringify
       await AsyncStorage.setItem(KEYS.TOKEN, data.token)
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(data.user))
-
       set({ user: data.user, isAuthenticated: true })
       return { isNewUser: data.isNewUser }
     } catch (err) {
@@ -71,15 +58,14 @@ const useAuthStore = create((set, get) => ({
     try {
       const data = await authApi.updateProfile({
         name:       profileData.name,
-        email:      profileData.email,
-        avatar_url: profileData.avatar,
+        email:      profileData.email || null,
+        avatar_url: profileData.avatar || null,
       })
       const user = data.user
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(user))
       set({ user, isAuthenticated: true })
     } catch (err) {
-      // API failed — save locally so app still works
-      console.warn('Profile save to API failed:', err.message)
+      // Save locally if API fails
       const user = { ...get().user, ...profileData }
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(user))
       set({ user, isAuthenticated: true })

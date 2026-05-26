@@ -1,24 +1,22 @@
 export const APP_NAME = 'REDE'
 
-// Major Uganda cities for the city selector
 export const UGANDA_CITIES = [
-  { id: 'kampala',  name: 'Kampala',  lat: 0.3476,  lng: 32.5825 },
-  { id: 'entebbe',  name: 'Entebbe',  lat: 0.0512,  lng: 32.4637 },
-  { id: 'jinja',    name: 'Jinja',    lat: -0.4289, lng: 33.2041 },
-  { id: 'mbarara',  name: 'Mbarara',  lat: -0.6072, lng: 30.6545 },
-  { id: 'gulu',     name: 'Gulu',     lat: 2.7747,  lng: 32.2990 },
-  { id: 'mbale',    name: 'Mbale',    lat: 1.0796,  lng: 34.1750 },
-  { id: 'masaka',   name: 'Masaka',   lat: -0.3136, lng: 31.7358 },
-  { id: 'fort_portal', name: 'Fort Portal', lat: 0.6710, lng: 30.2750 },
-  { id: 'kabale',   name: 'Kabale',   lat: -1.2490, lng: 29.9890 },
-  { id: 'lira',     name: 'Lira',     lat: 2.2499,  lng: 32.8998 },
-  { id: 'arua',     name: 'Arua',     lat: 3.0200,  lng: 30.9100 },
-  { id: 'soroti',   name: 'Soroti',   lat: 1.7150,  lng: 33.6110 },
+  { id: 'kampala',     name: 'Kampala',     lat: 0.3476,  lng: 32.5825 },
+  { id: 'entebbe',     name: 'Entebbe',     lat: 0.0512,  lng: 32.4637 },
+  { id: 'jinja',       name: 'Jinja',       lat: -0.4289, lng: 33.2041 },
+  { id: 'mbarara',     name: 'Mbarara',     lat: -0.6072, lng: 30.6545 },
+  { id: 'gulu',        name: 'Gulu',        lat: 2.7747,  lng: 32.2990 },
+  { id: 'mbale',       name: 'Mbale',       lat: 1.0796,  lng: 34.1750 },
+  { id: 'masaka',      name: 'Masaka',      lat: -0.3136, lng: 31.7358 },
+  { id: 'fort_portal', name: 'Fort Portal', lat: 0.6710,  lng: 30.2750 },
+  { id: 'kabale',      name: 'Kabale',      lat: -1.2490, lng: 29.9890 },
+  { id: 'lira',        name: 'Lira',        lat: 2.2499,  lng: 32.8998 },
+  { id: 'arua',        name: 'Arua',        lat: 3.0200,  lng: 30.9100 },
+  { id: 'soroti',      name: 'Soroti',      lat: 1.7150,  lng: 33.6110 },
 ]
 
 export const DEFAULT_CITY = { ...UGANDA_CITIES[0], city: UGANDA_CITIES[0].name }
 
-// Well-known Kampala areas for location picker
 export const KAMPALA_AREAS = [
   'Kololo', 'Nakasero', 'Ntinda', 'Muyenga', 'Bugolobi',
   'Kisementi', 'Bukoto', 'Munyonyo', 'Naguru', 'Lugogo',
@@ -62,7 +60,9 @@ export const HOME_SECTIONS = [
 export const EVENT_RULES = {
   titleMin: 5, titleMax: 80,
   descriptionMin: 50, descriptionMax: 1000,
-  minLeadTimeHours: 2, maxLeadTimeDays: 180,
+  minLeadTimeHours: 2,
+  // Max 1 week ahead — people make up their minds quickly
+  maxLeadTimeDays: 7,
 }
 
 export const SCORE_WEIGHTS = {
@@ -70,6 +70,7 @@ export const SCORE_WEIGHTS = {
 }
 
 export const API_BASE_URL = 'https://web-production-e695b.up.railway.app/api/v1'
+export const APP_URL = 'https://rede-app.netlify.app'
 
 export const PAYMENT = {
   provider: 'pesapal',

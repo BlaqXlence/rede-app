@@ -53,3 +53,11 @@ export function discountPercent(originalPrice, salePrice) {
   if (!originalPrice || originalPrice <= salePrice) return null
   return Math.round(((originalPrice - salePrice) / originalPrice) * 100)
 }
+
+// Short date for card image pill: "Sat 31 May"
+export function formatDateShort(dateStr) {
+  const d = new Date(dateStr)
+  const days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`
+}
