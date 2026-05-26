@@ -1,116 +1,133 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet } from 'react-native'
+/**
+ * SearchScreen.js
+ * Real database search with debounce.
+ * Filters by category, shows results as cards.
+ */
+import React, { useState, useRef, useCallback } from 'react'
+import {
+  View, Text, TextInput, FlatList, TouchableOpacity,
+  StyleSheet, ActivityIndicator,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import colors from '../../constants/colors'
-import useEventsStore from '../../store/eventsStore'
-import EventCard from '../../components/events/EventCard'
+import useThemeStore  from '../../store/themeStore'
+import EventCard, { CARD_WIDTH_GRID } from '../../components/events/EventCard'
 import CategoryFilter from '../../components/events/CategoryFilter'
+import { searchApi }  from '../../services/api'
 
 export default function SearchScreen({ navigation }) {
-  const [query, setQuery] = useState('')
-  const [activeCategory, setActiveCategory] = useState('all')
-  const inputRef = useRef(null)
-  const { search, searchResults, recentSearches, addRecentSearch } = useEventsStore()
+  const { colors }    = useThemeStore()
+  const [query, setQuery]       = useState('')
+  const [results, setResults]   = useState([])
+  const [loading, setLoading]   = useState(false)
+  const [searched, setSearched] = useState(false)
+  const [category, setCategory] = useState('all')
+  const debounce = useRef(null)
 
-  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 200) }, [])
+  const doSearch = useCallback(async (q, cat) => {
+    if (!q || q.trim().length < 2) { setResults([]); setSearched(false); return }
+    setLoading(true)
+    setSearched(true)
+    try {
+      const params = cat && cat !== 'all' ? { category: cat } : {}
+      const data   = await searchApi.search(q.trim(), params)
+      setResults(data.results || [])
+    } catch {
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  useEffect(() => { if (query.trim()) search(query) }, [query])
+  function handleChange(text) {
+    setQuery(text)
+    clearTimeout(debounce.current)
+    debounce.current = setTimeout(() => doSearch(text, category), 500)
+  }
 
-  function handleSubmit() {
-    if (!query.trim()) return
-    addRecentSearch(query.trim())
-    search(query)
+  function handleCategory(cat) {
+    setCategory(cat)
+    doSearch(query, cat)
   }
 
   function openEvent(event) {
-    addRecentSearch(event.title)
-    navigation.navigate('EventDetail', { eventId: event.id })
+    navigation.navigate('EventDetail', { eventId: event.id, event })
   }
 
-  const filtered = activeCategory === 'all' ? searchResults : searchResults.filter(e => e.category === activeCategory)
-
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.searchBar}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Search bar */}
+      <View style={[styles.bar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={[styles.back, { color: colors.primary }]}>←</Text>
+        </TouchableOpacity>
         <TextInput
-          ref={inputRef}
-          style={styles.input}
+          style={[styles.input, { color: colors.textPrimary }]}
           value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={handleSubmit}
-          placeholder="Search events, venues..."
+          onChangeText={handleChange}
+          placeholder="Search events..."
           placeholderTextColor={colors.textHint}
+          autoFocus
           returnKeyType="search"
-          autoCorrect={false}
+          onSubmitEditing={() => doSearch(query, category)}
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')}>
-            <Text style={styles.clear}>✕</Text>
+          <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setSearched(false) }}>
+            <Text style={{ color: colors.textHint, fontSize: 18 }}>×</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {query.trim() && <CategoryFilter selected={activeCategory} onSelect={setActiveCategory} />}
+      {/* Category filter */}
+      <CategoryFilter selected={category} onSelect={handleCategory} />
 
-      {!query.trim() && recentSearches.length > 0 && (
-        <View style={styles.recent}>
-          <Text style={styles.recentTitle}>Recent</Text>
-          {recentSearches.map(term => (
-            <TouchableOpacity key={term} style={styles.recentRow} onPress={() => setQuery(term)}>
-              <Text style={styles.recentIcon}>🕒</Text>
-              <Text style={styles.recentText}>{term}</Text>
-            </TouchableOpacity>
-          ))}
+      {/* Results */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      )}
-
-      {!query.trim() && recentSearches.length === 0 && (
-        <View style={styles.hint}>
-          <Text style={{ fontSize: 40 }}>🔍</Text>
-          <Text style={styles.hintText}>Search by name, venue or category</Text>
+      ) : searched && results.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={{ fontSize: 36 }}>🔍</Text>
+          <Text style={[styles.emptyTxt, { color: colors.textSecondary }]}>
+            No events found for "{query}"
+          </Text>
         </View>
-      )}
-
-      {query.trim() && (
-        filtered.length > 0 ? (
-          <FlatList
-            data={filtered}
-            keyExtractor={e => e.id}
-            numColumns={2}
-            columnWrapperStyle={styles.row}
-            contentContainerStyle={styles.list}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => <EventCard event={item} onPress={openEvent} />}
-          />
-        ) : (
-          <View style={styles.hint}>
-            <Text style={{ fontSize: 40 }}>😕</Text>
-            <Text style={styles.hintText}>No events found for "{query}"</Text>
-          </View>
-        )
+      ) : results.length > 0 ? (
+        <FlatList
+          data={results}
+          keyExtractor={e => e.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <EventCard event={item} onPress={openEvent} style={{ marginBottom: 10 }} />
+          )}
+        />
+      ) : (
+        <View style={styles.center}>
+          <Text style={{ fontSize: 36 }}>🎭</Text>
+          <Text style={[styles.hint, { color: colors.textHint }]}>
+            Search for parties, sports, music...
+          </Text>
+        </View>
       )}
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center',
-    margin: 16, backgroundColor: colors.surface,
-    borderWidth: 1.5, borderColor: colors.primary,
-    borderRadius: 12, paddingHorizontal: 14,
+  safe: { flex: 1 },
+  bar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    margin: 12, borderWidth: 1.5, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
   },
-  input: { flex: 1, fontSize: 16, color: colors.textPrimary, paddingVertical: 14 },
-  clear: { fontSize: 14, color: colors.textHint, padding: 4 },
-  recent: { paddingHorizontal: 16 },
-  recentTitle: { fontSize: 12, fontWeight: '700', color: colors.textHint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  recentRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divider },
-  recentIcon: { fontSize: 14, marginRight: 12 },
-  recentText: { fontSize: 15, color: colors.textPrimary },
-  list: { padding: 16, paddingBottom: 80 },
-  row: { gap: 12 },
-  hint: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
-  hintText: { fontSize: 14, color: colors.textSecondary, marginTop: 10, textAlign: 'center', paddingHorizontal: 32 },
+  back:  { fontSize: 22, fontWeight: '700' },
+  input: { flex: 1, fontSize: 16 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  emptyTxt: { fontSize: 15, textAlign: 'center', paddingHorizontal: 32 },
+  hint:     { fontSize: 14, textAlign: 'center' },
+  list:  { padding: 16, paddingBottom: 80 },
+  row:   { gap: 10 },
 })

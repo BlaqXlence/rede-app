@@ -9,7 +9,7 @@ import { eventsApi } from '../services/api'
 
 const useEventsStore = create((set, get) => ({
   userLocation:     null,
-  locationName:     'Kampala',
+  locationName:     DEFAULT_CITY.city || 'Kampala',
   locationPermission: null,
   events:           MOCK_EVENTS,
   feed:             { byCategory: {}, happeningNow: [], all: [] },
@@ -49,7 +49,7 @@ const useEventsStore = create((set, get) => ({
         get()._buildFeed(lat, lng)
       }
     } catch (err) {
-      console.log('Using local events:', err.message)
+      console.log('API not reachable, using mock data:', err.message)
     } finally {
       set({ isLoadingEvents: false })
     }
@@ -79,32 +79,13 @@ const useEventsStore = create((set, get) => ({
     if (saved) set({ recentSearches: JSON.parse(saved) })
   },
 
+  // THE FIX: properly awaited, returns real event object
   createEvent: async (draft) => {
     const { user } = require('./authStore').default.getState()
+    let savedEvent = null
 
-    // Build local event immediately — shows up in feed right away
-    const localEvent = {
-      ...draft,
-      id: `EVT-${generateEventId()}`,
-      organizer: {
-        id:       user?.id || 'local',
-        name:     user?.name || 'You',
-        phone:    user?.phone || '',
-        avatar:   user?.avatar || null,
-        verified: user?.verified || false,
-      },
-      attendeeCount: 0,
-      createdAt: new Date().toISOString(),
-    }
-
-    // Add to local store immediately so user sees it
-    const events = [localEvent, ...get().events]
-    const loc = get().userLocation || { lat: DEFAULT_CITY.lat, lng: DEFAULT_CITY.lng }
-    set({ events })
-    get()._buildFeed(loc.lat, loc.lng)
-
-    // Try to save to database in background
     try {
+      // Try to save to real database
       const response = await eventsApi.create({
         title:            draft.title,
         description:      draft.description,
@@ -120,9 +101,7 @@ const useEventsStore = create((set, get) => ({
         entry_fee:        draft.entryFee || 0,
         tags:             draft.tags || [],
       })
-
-      // Replace local event with real DB event
-      const dbEvent = {
+      savedEvent = {
         ...response.event,
         location: {
           ...response.event.location,
@@ -132,38 +111,46 @@ const useEventsStore = create((set, get) => ({
           mapsLink:  draft.location.mapsLink,
         },
       }
-      const updatedEvents = get().events.map(e => e.id === localEvent.id ? dbEvent : e)
-      set({ events: updatedEvents })
-      get()._buildFeed(loc.lat, loc.lng)
-      console.log('✅ Event saved to DB:', dbEvent.id)
-      return dbEvent
-
+      console.log('✅ Event saved to DB:', savedEvent.id)
     } catch (err) {
-      console.warn('DB save failed, kept locally:', err.message)
-      // Return the local event — app still works
-      return localEvent
+      console.warn('DB save failed, using local:', err.message)
+      savedEvent = {
+        ...draft,
+        id: `EVT-${generateEventId()}`,
+        organizer: {
+          id: user?.id || 'local',
+          name: user?.name || 'You',
+          phone: user?.phone || '',
+          avatar: user?.avatar || null,
+          verified: user?.verified || false,
+        },
+        attendeeCount: 0,
+        createdAt: new Date().toISOString(),
+      }
     }
+
+    const events = [savedEvent, ...get().events]
+    const loc = get().userLocation || { lat: DEFAULT_CITY.lat, lng: DEFAULT_CITY.lng }
+    set({ events })
+    get()._buildFeed(loc.lat, loc.lng)
+    return savedEvent  // MUST return the event, not a Promise
   },
 
   joinEvent: async (id) => {
-    const events = get().events.map(e =>
-      e.id === id ? { ...e, attendeeCount: e.attendeeCount + 1 } : e
-    )
+    const events = get().events.map(e => e.id === id ? { ...e, attendeeCount: e.attendeeCount + 1 } : e)
     set({ events, attending: [...new Set([...get().attending, id])] })
     try { await eventsApi.join(id) } catch {}
   },
 
   leaveEvent: async (id) => {
-    const events = get().events.map(e =>
-      e.id === id ? { ...e, attendeeCount: Math.max(0, e.attendeeCount - 1) } : e
-    )
+    const events = get().events.map(e => e.id === id ? { ...e, attendeeCount: Math.max(0, e.attendeeCount - 1) } : e)
     set({ events, attending: get().attending.filter(x => x !== id) })
     try { await eventsApi.leave(id) } catch {}
   },
 
+  isAttending:  (id) => get().attending.includes(id),
   setEventsLocal: (events) => set({ events }),
-  isAttending:    (id) => get().attending.includes(id),
-  getEventById:   (id) => get().events.find(e => e.id === id),
+  getEventById: (id) => get().events.find(e => e.id === id),
 }))
 
 export default useEventsStore

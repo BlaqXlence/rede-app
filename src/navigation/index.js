@@ -1,15 +1,9 @@
-/**
- * navigation/index.js
- * - Removed Search from tabs (it's on home page)
- * - Minimalistic SVG icons for tabs
- * - Theme-aware navigation container
- */
 import React, { useEffect } from 'react'
 import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native'
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import { Svg, Path, Circle, Rect, Line } from 'react-native-svg'
+import { Svg, Path, Circle } from 'react-native-svg'
 
 import useAuthStore   from '../store/authStore'
 import useEventsStore from '../store/eventsStore'
@@ -20,19 +14,19 @@ import PhoneScreen        from '../screens/auth/PhoneScreen'
 import OtpScreen          from '../screens/auth/OtpScreen'
 import ProfileSetupScreen from '../screens/auth/ProfileSetupScreen'
 
-import HomeScreen          from '../screens/main/HomeScreen'
-import CreateEventScreen   from '../screens/main/CreateEventScreen'
-import ProfileScreen       from '../screens/main/ProfileScreen'
-import EventDetailScreen   from '../screens/main/EventDetailScreen'
+import HomeScreen           from '../screens/main/HomeScreen'
+import CreateEventScreen    from '../screens/main/CreateEventScreen'
+import ProfileScreen        from '../screens/main/ProfileScreen'
+import EventDetailScreen    from '../screens/main/EventDetailScreen'
 import CategoryEventsScreen from '../screens/main/CategoryEventsScreen'
-import EditEventScreen     from '../screens/main/EditEventScreen'
-import SearchScreen        from '../screens/main/SearchScreen'
+import EditEventScreen      from '../screens/main/EditEventScreen'
+import SearchScreen         from '../screens/main/SearchScreen'
+import OrganizerScreen      from '../screens/main/OrganizerScreen'
 
 const AuthStack = createNativeStackNavigator()
 const MainStack = createNativeStackNavigator()
 const Tab       = createBottomTabNavigator()
 
-// Minimalistic tab icons using SVG
 function HomeIcon({ color, size }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -41,7 +35,6 @@ function HomeIcon({ color, size }) {
     </Svg>
   )
 }
-
 function PlusIcon({ color, size }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -50,7 +43,6 @@ function PlusIcon({ color, size }) {
     </Svg>
   )
 }
-
 function ProfileIcon({ color, size }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -76,11 +68,8 @@ function MainTabs() {
           paddingBottom:   Platform.OS === 'ios' ? 24 : 8,
           paddingTop:      6,
         },
-        tabBarLabelStyle: {
-          fontSize: 11, fontWeight: '600',
-          fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Roboto',
-        },
-        tabBarIcon: ({ color, size }) => {
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarIcon: ({ color }) => {
           if (route.name === 'Home')    return <HomeIcon    color={color} size={22} />
           if (route.name === 'Create')  return <PlusIcon    color={color} size={22} />
           if (route.name === 'Profile') return <ProfileIcon color={color} size={22} />
@@ -97,11 +86,12 @@ function MainTabs() {
 function MainNavigator() {
   return (
     <MainStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-      <MainStack.Screen name="Tabs"            component={MainTabs} />
-      <MainStack.Screen name="EventDetail"     component={EventDetailScreen} />
-      <MainStack.Screen name="CategoryEvents"  component={CategoryEventsScreen} />
-      <MainStack.Screen name="EditEvent"       component={EditEventScreen} />
-      <MainStack.Screen name="Search"          component={SearchScreen} />
+      <MainStack.Screen name="Tabs"           component={MainTabs} />
+      <MainStack.Screen name="EventDetail"    component={EventDetailScreen} />
+      <MainStack.Screen name="CategoryEvents" component={CategoryEventsScreen} />
+      <MainStack.Screen name="EditEvent"      component={EditEventScreen} />
+      <MainStack.Screen name="Search"         component={SearchScreen} />
+      <MainStack.Screen name="Organizer"      component={OrganizerScreen} />
     </MainStack.Navigator>
   )
 }
@@ -141,7 +131,6 @@ export default function RootNavigator() {
     )
   }
 
-  // Nav theme matches app theme
   const navTheme = {
     ...(colors.isDark ? DarkTheme : DefaultTheme),
     colors: {
@@ -161,10 +150,6 @@ export default function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
-  splash: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-  },
-  splashLogo: {
-    fontSize: 40, fontWeight: '900', letterSpacing: -1,
-  },
+  splash: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  splashLogo: { fontSize: 40, fontWeight: '900', letterSpacing: -1 },
 })

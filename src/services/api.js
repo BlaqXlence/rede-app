@@ -1,15 +1,12 @@
 /**
- * api.js
- *
- * CRITICAL FIX: Token is now read as a plain string.
- * Previously JSON.parse(token) added extra quotes to the Bearer token.
+ * api.js — All API calls in one place
+ * Token read as plain string (no JSON.parse)
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const BASE_URL = 'https://web-production-e695b.up.railway.app/api/v1'
 
 async function getHeaders() {
-  // Read plain string — no JSON.parse
   const token = await AsyncStorage.getItem('rede:token')
   return {
     'Content-Type': 'application/json',
@@ -33,6 +30,7 @@ export const authApi = {
   verifyOtp:     (phone, code) => request('POST', '/auth/otp/verify', { phone, code }),
   updateProfile: (data)        => request('PUT',  '/auth/profile', data),
   getProfile:    ()            => request('GET',  '/auth/profile'),
+  getOrganizer:  (id)          => request('GET',  `/auth/organizer/${id}`),
 }
 
 export const eventsApi = {
@@ -48,7 +46,22 @@ export const eventsApi = {
 }
 
 export const reviewsApi = {
-  get:    (eventId)              => request('GET',  `/events/${eventId}/reviews`),
-  create: (eventId, rating, comment) =>
-    request('POST', `/events/${eventId}/reviews`, { rating, comment }),
+  get:    (eventId)                  => request('GET',  `/events/${eventId}/reviews`),
+  create: (eventId, rating, comment) => request('POST', `/events/${eventId}/reviews`, { rating, comment }),
+}
+
+export const commentsApi = {
+  get:    (eventId)            => request('GET',    `/events/${eventId}/comments`),
+  post:   (eventId, text)      => request('POST',   `/events/${eventId}/comments`, { text }),
+  delete: (eventId, commentId) => request('DELETE', `/events/${eventId}/comments/${commentId}`),
+}
+
+export const searchApi = {
+  search: (q, params = {}) => request('GET', `/search?q=${encodeURIComponent(q)}&${new URLSearchParams(params)}`),
+}
+
+export const uploadApi = {
+  upload: async (base64Image) => {
+    return request('POST', '/upload', { image: base64Image })
+  },
 }

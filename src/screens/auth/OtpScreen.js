@@ -1,21 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import useThemeStore from '../../store/themeStore'
+import colors from '../../constants/colors'
+import Button from '../../components/common/Button'
 import useAuthStore from '../../store/authStore'
 
 const LEN = 6
-const RESEND_SEC = 30
+const RESEND = 30
 
 export default function OtpScreen({ navigation, route }) {
-  const { phone }  = route.params
-  const { colors } = useThemeStore()
-  const { verifyOtp, sendOtp } = useAuthStore()
-
-  const [digits, setDigits]   = useState(Array(LEN).fill(''))
+  const { phone } = route.params
+  const [digits, setDigits] = useState(Array(LEN).fill(''))
   const [loading, setLoading] = useState(false)
-  const [timer, setTimer]     = useState(RESEND_SEC)
+  const [timer, setTimer] = useState(RESEND)
   const refs = useRef([])
+  const { verifyOtp, sendOtp } = useAuthStore()
 
   useEffect(() => {
     if (timer <= 0) return
@@ -47,84 +46,60 @@ export default function OtpScreen({ navigation, route }) {
     if (code.length < LEN) return
     setLoading(true)
     try {
-      // verifyOtp sets isAuthenticated = true
-      // RootNavigator automatically switches to MainNavigator
-      // For new users we push ProfileSetup BEFORE that switch happens
-      const result = await verifyOtp(phone, code)
-      // Navigation to ProfileSetup happens inside MainNavigator now
-      // isAuthenticated triggers the switch — no manual navigation needed
+      const { isNewUser } = await verifyOtp(phone, code)
+      if (isNewUser) navigation.replace('ProfileSetup')
+      else navigation.reset({ index: 0, routes: [{ name: 'ProfileSetup' }] })
     } catch (e) {
       Alert.alert('Wrong code', e.message)
       setDigits(Array(LEN).fill(''))
       refs.current[0]?.focus()
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   async function handleResend() {
     if (timer > 0) return
-    try { await sendOtp(phone); setTimer(RESEND_SEC) } catch {}
+    try { await sendOtp(phone); setTimer(RESEND) } catch {}
   }
 
-  const complete = digits.every(d => d !== '')
-
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
         <TouchableOpacity style={{ marginBottom: 32 }} onPress={() => navigation.goBack()}>
-          <Text style={[styles.back, { color: colors.primary }]}>← Back</Text>
+          <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.heading, { color: colors.textPrimary }]}>Enter the code</Text>
-        <Text style={[styles.sub, { color: colors.textSecondary }]}>
-          Sent to <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{phone}</Text>
-        </Text>
+        <Text style={styles.heading}>Enter the code</Text>
+        <Text style={styles.sub}>Sent to <Text style={styles.phone}>{phone}</Text></Text>
         <View style={styles.boxes}>
           {digits.map((d, i) => (
-            <TextInput
-              key={i}
-              ref={el => (refs.current[i] = el)}
-              style={[styles.box, { backgroundColor: colors.surface, borderColor: d ? colors.primary : colors.border, color: colors.textPrimary }]}
-              value={d}
-              onChangeText={v => handleDigit(i, v)}
-              keyboardType="number-pad"
-              maxLength={LEN}
-              selectTextOnFocus
-              autoFocus={i === 0}
-            />
+            <TextInput key={i} ref={el => (refs.current[i] = el)}
+              style={[styles.box, d && styles.boxFilled]}
+              value={d} onChangeText={v => handleDigit(i, v)}
+              keyboardType="number-pad" maxLength={LEN} selectTextOnFocus autoFocus={i === 0} />
           ))}
         </View>
         <TouchableOpacity onPress={handleResend} disabled={timer > 0}>
-          <Text style={[styles.resend, { color: timer > 0 ? colors.textHint : colors.primary }]}>
-            {timer > 0 ? `Resend in ${timer}s` : 'Resend code'}
+          <Text style={[styles.resend, timer > 0 && styles.resendOff]}>
+            {timer > 0 ? `Resend code in ${timer}s` : 'Resend code'}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.primary, opacity: (!complete || loading) ? 0.5 : 1 }]}
-          onPress={handleVerify}
-          disabled={!complete || loading}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.btnTxt}>{loading ? 'Verifying...' : 'Verify'}</Text>
-        </TouchableOpacity>
-        <Text style={[styles.devNote, { color: colors.textHint }]}>
-          Check Railway logs for your OTP code
-        </Text>
+        <Button label="Verify" onPress={handleVerify} loading={loading} disabled={digits.every(d => d === '')} size="lg" style={{ marginTop: 8 }} />
+        <Text style={styles.devNote}>Dev: any 6-digit code works</Text>
       </View>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: { flex: 1, backgroundColor: colors.background },
   content: { padding: 24, paddingTop: 16 },
-  back: { fontSize: 16, fontWeight: '600' },
-  heading: { fontSize: 28, fontWeight: '800', marginBottom: 10, letterSpacing: -0.5 },
-  sub: { fontSize: 15, marginBottom: 36 },
+  back: { fontSize: 16, color: colors.primary, fontWeight: '600' },
+  heading: { fontSize: 28, fontWeight: '800', color: colors.textPrimary, marginBottom: 10, letterSpacing: -0.5 },
+  sub: { fontSize: 15, color: colors.textSecondary, marginBottom: 36 },
+  phone: { color: colors.textPrimary, fontWeight: '700' },
   boxes: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
-  box: { width: 46, height: 56, borderWidth: 2, borderRadius: 12, textAlign: 'center', fontSize: 24, fontWeight: '700' },
-  resend: { fontSize: 14, fontWeight: '600', textAlign: 'center', marginBottom: 24 },
-  btn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
-  btnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  devNote: { textAlign: 'center', marginTop: 16, fontSize: 12 },
+  box: { width: 48, height: 58, borderWidth: 2, borderColor: colors.border, borderRadius: 12, textAlign: 'center', fontSize: 24, fontWeight: '700', color: colors.textPrimary, backgroundColor: colors.surface },
+  boxFilled: { borderColor: colors.primary, backgroundColor: colors.primaryFaint },
+  resend: { fontSize: 14, color: colors.primary, fontWeight: '600', textAlign: 'center', marginBottom: 24 },
+  resendOff: { color: colors.textHint },
+  devNote: { textAlign: 'center', marginTop: 20, fontSize: 12, color: colors.textHint },
 })
