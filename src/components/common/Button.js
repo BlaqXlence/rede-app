@@ -1,6 +1,6 @@
 import React from 'react'
 import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, View } from 'react-native'
-import colors from '../../constants/colors'
+import useThemeStore from '../../store/themeStore'
 
 export default function Button({ label, onPress, variant = 'primary', size = 'md', loading = false, disabled = false, icon = null, style }) {
   const isDisabled = disabled || loading

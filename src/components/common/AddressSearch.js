@@ -5,7 +5,7 @@
  */
 import React, { useState, useRef, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
-import colors from '../../constants/colors'
+import useThemeStore from '../../store/themeStore'
 
 export default function AddressSearch({ value, onSelect, error }) {
   const [query, setQuery]       = useState(value?.name || '')
