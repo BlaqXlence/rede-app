@@ -1,8 +1,12 @@
 /**
  * EventDetailScreen.js
- * Full event detail — back arrow, proper share, comments, reviews, organizer tap
+ * - Back arrow goes back to exactly where user came from
+ * - Comments + Reviews as two tabs
+ * - Bottom nav always visible
+ * - No blue input outlines
+ * - WhatsApp-style comment bubbles
  */
-import React from 'react'
+import React, { useState } from 'react'
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
   StyleSheet, Alert, Linking,
@@ -12,10 +16,10 @@ import useThemeStore    from '../../store/themeStore'
 import useEventsStore   from '../../store/eventsStore'
 import useAuthStore     from '../../store/authStore'
 import Avatar           from '../../components/common/Avatar'
-import BackButton       from '../../components/common/BackButton'
 import ShareButton      from '../../components/common/ShareButton'
-import ReviewSection    from '../../components/events/ReviewSection'
+import BottomNav        from '../../components/common/BottomNav'
 import CommentSection   from '../../components/events/CommentSection'
+import ReviewSection    from '../../components/events/ReviewSection'
 import { formatDateRange, formatUGX, formatAttendees, timeFromNow } from '../../utils/formatters'
 import { EVENT_CATEGORIES } from '../../constants/config'
 import { eventsApi } from '../../services/api'
@@ -25,6 +29,7 @@ export default function EventDetailScreen({ navigation, route }) {
   const { colors }     = useThemeStore()
   const { getEventById, joinEvent, leaveEvent, isAttending } = useEventsStore()
   const { user }       = useAuthStore()
+  const [activeTab, setActiveTab] = useState('comments') // 'comments' | 'reviews'
 
   const event       = fromParams || getEventById(eventId)
   const attending   = isAttending(event?.id)
@@ -38,20 +43,23 @@ export default function EventDetailScreen({ navigation, route }) {
   if (!event) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <BackButton onPress={() => navigation.goBack()} />
+        <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={[styles.backTxt, { color: colors.primary }]}>←</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.center}>
           <Text style={{ fontSize: 40 }}>🔍</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 16, marginTop: 12 }}>Event not found</Text>
         </View>
+        <BottomNav navigation={navigation} activeTab="" />
       </SafeAreaView>
     )
   }
 
   function handleJoin() {
     if (!user) {
-      Alert.alert('Sign in required', 'You need to sign in to join events.', [
+      Alert.alert('Sign in required', '', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Sign In', onPress: () => navigation.navigate('Phone') },
       ])
@@ -75,7 +83,7 @@ export default function EventDetailScreen({ navigation, route }) {
   }
 
   async function handleDelete() {
-    Alert.alert('Delete event?', 'This cannot be undone.', [
+    Alert.alert('Delete event?', 'Cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
@@ -87,31 +95,22 @@ export default function EventDetailScreen({ navigation, route }) {
     ])
   }
 
-  function requireAuth() {
-    Alert.alert('Sign in required', '', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign In', onPress: () => navigation.navigate('Phone') },
-    ])
-  }
-
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['bottom']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-
-        {/* Cover image with back + share buttons */}
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        {/* Cover */}
         <View style={styles.coverWrap}>
           <Image source={{ uri: event.coverImage }} style={styles.cover} resizeMode="cover" />
 
-          {/* Back arrow — always visible */}
+          {/* Back — goes back to exactly where you came from */}
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => navigation.goBack()}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={styles.overlayBtnTxt}>←</Text>
+            <Text style={styles.overlayTxt}>←</Text>
           </TouchableOpacity>
 
-          {/* Share button — opens share sheet */}
           <View style={styles.shareWrap}>
             <ShareButton event={event} />
           </View>
@@ -137,14 +136,14 @@ export default function EventDetailScreen({ navigation, route }) {
 
           <Text style={[styles.title, { color: colors.textPrimary }]}>{event.title}</Text>
 
-          {/* Organizer actions */}
+          {/* Organizer edit/delete */}
           {isOrganizer && (
             <View style={styles.orgActions}>
               <TouchableOpacity
                 style={[styles.actionBtn, { backgroundColor: colors.primary }]}
                 onPress={() => navigation.navigate('EditEvent', { event })}
               >
-                <Text style={styles.actionBtnTxt}>Edit Event</Text>
+                <Text style={styles.actionBtnTxt}>Edit</Text>
               </TouchableOpacity>
               {canDelete && (
                 <TouchableOpacity
@@ -177,7 +176,7 @@ export default function EventDetailScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Details card */}
+          {/* Details */}
           <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
             <Row icon="📅" text={formatDateRange(event.startTime, event.endTime)} color={colors.textSecondary} />
             <Row icon="📍" color={colors.textSecondary}
@@ -188,13 +187,8 @@ export default function EventDetailScreen({ navigation, route }) {
               ].filter(Boolean).join(', ')}
             />
             {(event.location?.lat || event.location?.mapsLink) && (
-              <TouchableOpacity
-                style={[styles.mapsBtn, { backgroundColor: colors.primaryFaint }]}
-                onPress={openMaps}
-              >
-                <Text style={[styles.mapsBtnTxt, { color: colors.primary }]}>
-                  📍 Open in Google Maps
-                </Text>
+              <TouchableOpacity style={[styles.mapsBtn, { backgroundColor: colors.primaryFaint }]} onPress={openMaps}>
+                <Text style={[styles.mapsBtnTxt, { color: colors.primary }]}>📍 Open in Google Maps</Text>
               </TouchableOpacity>
             )}
             {event.location?.lat && (
@@ -205,7 +199,7 @@ export default function EventDetailScreen({ navigation, route }) {
             <Row icon="👥" text={formatAttendees(event.attendeeCount, event.maxAttendees)} color={colors.textSecondary} />
           </View>
 
-          {/* Organizer — tappable to see their profile */}
+          {/* Organizer — tappable */}
           <TouchableOpacity
             style={[styles.organizer, { backgroundColor: colors.surface }]}
             onPress={() => navigation.navigate('Organizer', { organizerId: event.organizer?.id })}
@@ -222,22 +216,43 @@ export default function EventDetailScreen({ navigation, route }) {
           </TouchableOpacity>
 
           {/* Description */}
-          <Text style={[styles.descTitle, { color: colors.textPrimary }]}>About this event</Text>
+          <Text style={[styles.descTitle, { color: colors.textPrimary }]}>About</Text>
           <Text style={[styles.desc, { color: colors.textSecondary }]}>{event.description}</Text>
 
-          {/* Comments */}
-          <CommentSection eventId={event.id} onRequireAuth={requireAuth} />
+          {/* Comments + Reviews TABS */}
+          <View style={[styles.tabs, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'comments' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
+              onPress={() => setActiveTab('comments')}
+            >
+              <Text style={[styles.tabTxt, { color: activeTab === 'comments' ? colors.primary : colors.textSecondary }]}>
+                Comments
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'reviews' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
+              onPress={() => setActiveTab('reviews')}
+            >
+              <Text style={[styles.tabTxt, { color: activeTab === 'reviews' ? colors.primary : colors.textSecondary }]}>
+                Reviews
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-          {/* Reviews */}
-          <ReviewSection eventId={event.id} eventEnded={eventEnded} />
+          {/* Tab content */}
+          {activeTab === 'comments' ? (
+            <CommentSection eventId={event.id} isOrganizer={isOrganizer} />
+          ) : (
+            <ReviewSection eventId={event.id} eventEnded={eventEnded} />
+          )}
         </View>
       </ScrollView>
 
-      {/* Footer */}
+      {/* Join footer */}
       {!isOrganizer && (
         <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <View>
-            <Text style={[styles.footerLabel, { color: colors.textHint }]}>Entry fee</Text>
+            <Text style={[styles.footerLabel, { color: colors.textHint }]}>Entry</Text>
             <Text style={[styles.footerPrice, { color: colors.primary }]}>{formatUGX(event.entryFee)}</Text>
           </View>
           <TouchableOpacity
@@ -252,7 +267,7 @@ export default function EventDetailScreen({ navigation, route }) {
             activeOpacity={0.85}
           >
             <Text style={[styles.joinBtnTxt, attending && { color: colors.primary }]}>
-              {!user ? 'Sign in to Join' : attending ? 'Leave Event' : isFull ? 'Full' : 'Join Event'}
+              {!user ? 'Sign in to Join' : attending ? 'Leave' : isFull ? 'Full' : 'Join Event'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -264,6 +279,9 @@ export default function EventDetailScreen({ navigation, route }) {
           </Text>
         </View>
       )}
+
+      {/* Bottom nav — always visible */}
+      <BottomNav navigation={navigation} activeTab="" />
     </SafeAreaView>
   )
 }
@@ -278,11 +296,11 @@ function Row({ icon, text, color }) {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  safe:    { flex: 1 },
+  center:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  headerBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  backTxt: { fontSize: 22, fontWeight: '700' },
 
-  // Cover
   coverWrap: { position: 'relative' },
   cover: { width: '100%', height: 260 },
   backBtn: {
@@ -292,37 +310,48 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   shareWrap: { position: 'absolute', top: 48, right: 16 },
-  overlayBtnTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  overlayTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
   liveBadge: { position: 'absolute', bottom: 12, left: 12, flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, gap: 5 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff' },
   liveTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
 
-  // Body
   body: { padding: 18 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   catBadge: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
   catTxt: { fontSize: 12, fontWeight: '700' },
   timeAway: { fontSize: 13, fontWeight: '600' },
-  title: { fontSize: 21, fontWeight: '800', lineHeight: 28, marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: '800', lineHeight: 28, marginBottom: 14 },
+
   orgActions: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   actionBtn: { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
   actionBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
   statsRow: { flexDirection: 'row', borderRadius: 14, padding: 14, marginBottom: 14, alignItems: 'center' },
   stat: { flex: 1, alignItems: 'center' },
   statVal: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
   statLbl: { fontSize: 11 },
   statLine: { width: 1, height: 32 },
+
   detailCard: { borderRadius: 14, padding: 16, marginBottom: 14 },
   mapsBtn: { borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 6 },
   mapsBtnTxt: { fontSize: 13, fontWeight: '600' },
   coords: { fontSize: 11, marginBottom: 8 },
+
   organizer: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 14, marginBottom: 14 },
   orgLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
   orgName: { fontSize: 15, fontWeight: '700', marginTop: 2 },
-  descTitle: { fontSize: 15, fontWeight: '800', marginBottom: 8 },
-  desc: { fontSize: 14, lineHeight: 22, marginBottom: 14 },
 
-  // Footer
+  descTitle: { fontSize: 15, fontWeight: '800', marginBottom: 8 },
+  desc: { fontSize: 14, lineHeight: 22, marginBottom: 16 },
+
+  // Tabs
+  tabs: {
+    flexDirection: 'row', borderRadius: 12, borderWidth: 1,
+    marginBottom: 14, overflow: 'hidden',
+  },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tabTxt: { fontSize: 14, fontWeight: '700' },
+
   footer: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, paddingHorizontal: 18, paddingVertical: 12, gap: 14 },
   footerLabel: { fontSize: 11, textTransform: 'uppercase', fontWeight: '600' },
   footerPrice: { fontSize: 17, fontWeight: '800' },

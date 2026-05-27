@@ -1,30 +1,23 @@
 /**
- * ReviewSection.js
- * Star rating + comment reviews for events.
- * Only shown after event has ended.
- * One review per user per event.
+ * ReviewSection.js - Star ratings, post-event only
  */
 import React, { useState, useEffect } from 'react'
 import {
-  View, Text, TouchableOpacity, TextInput,
-  StyleSheet, Alert, ActivityIndicator,
+  View, Text, TouchableOpacity, StyleSheet,
+  Alert, ActivityIndicator, Platform,
 } from 'react-native'
-import colors from '../../constants/colors'
-import Avatar from '../common/Avatar'
+import useThemeStore from '../../store/themeStore'
+import useAuthStore  from '../../store/authStore'
+import Avatar        from '../common/Avatar'
 import { reviewsApi } from '../../services/api'
-import useAuthStore from '../../store/authStore'
 
-function StarRating({ rating, onRate, readonly = false }) {
+function Stars({ rating, onRate, readonly }) {
   return (
-    <View style={styles.stars}>
-      {[1, 2, 3, 4, 5].map(n => (
-        <TouchableOpacity
-          key={n}
-          onPress={() => !readonly && onRate?.(n)}
-          disabled={readonly}
-          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-        >
-          <Text style={[styles.star, n <= rating && styles.starFilled]}>
+    <View style={{ flexDirection: 'row', gap: 3 }}>
+      {[1,2,3,4,5].map(n => (
+        <TouchableOpacity key={n} onPress={() => !readonly && onRate?.(n)} disabled={readonly}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+          <Text style={{ fontSize: 22, color: n <= rating ? '#FBBF24' : '#555' }}>
             {n <= rating ? '★' : '☆'}
           </Text>
         </TouchableOpacity>
@@ -34,7 +27,8 @@ function StarRating({ rating, onRate, readonly = false }) {
 }
 
 export default function ReviewSection({ eventId, eventEnded }) {
-  const { user } = useAuthStore()
+  const { colors }    = useThemeStore()
+  const { user }      = useAuthStore()
   const [reviews, setReviews]   = useState([])
   const [average, setAverage]   = useState(null)
   const [loading, setLoading]   = useState(true)
@@ -43,159 +37,133 @@ export default function ReviewSection({ eventId, eventEnded }) {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted]   = useState(false)
 
-  useEffect(() => {
-    loadReviews()
-  }, [eventId])
+  useEffect(() => { load() }, [eventId])
 
-  async function loadReviews() {
+  async function load() {
     try {
       const data = await reviewsApi.get(eventId)
       setReviews(data.reviews)
       setAverage(data.average)
-      // Check if current user already reviewed
       const mine = data.reviews.find(r => r.userId === user?.id)
-      if (mine) { setMyRating(mine.rating); setComment(mine.comment || ''); setSubmitted(true) }
-    } catch {
-      // Reviews might not exist yet — that's fine
-    } finally {
-      setLoading(false)
-    }
+      if (mine) { setMyRating(mine.rating); setComment(mine.comment||''); setSubmitted(true) }
+    } catch {}
+    finally { setLoading(false) }
   }
 
   async function handleSubmit() {
-    if (myRating === 0) {
-      Alert.alert('Rate the event', 'Tap a star to rate this event')
-      return
-    }
+    if (myRating === 0) { Alert.alert('Rate the event', 'Tap a star first'); return }
     setSubmitting(true)
     try {
       await reviewsApi.create(eventId, myRating, comment.trim() || null)
       setSubmitted(true)
-      loadReviews()
-      Alert.alert('Thanks!', 'Your review has been posted.')
+      load()
     } catch (err) {
-      Alert.alert('Could not post review', err.message)
+      Alert.alert('Error', err.message)
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="small" color={colors.primary} />
-      </View>
-    )
-  }
+  if (loading) return <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 12 }} />
 
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.sectionTitle}>Reviews</Text>
-
-      {/* Average rating */}
+      {/* Average */}
       {average && (
         <View style={styles.avgRow}>
-          <Text style={styles.avgNum}>{average}</Text>
-          <StarRating rating={Math.round(parseFloat(average))} readonly />
-          <Text style={styles.avgCount}>({reviews.length})</Text>
+          <Text style={[styles.avgNum, { color: colors.primary }]}>{average}</Text>
+          <Stars rating={Math.round(parseFloat(average))} readonly />
+          <Text style={[styles.avgCount, { color: colors.textHint }]}>({reviews.length})</Text>
         </View>
       )}
 
-      {/* Leave a review — only after event ends */}
+      {/* Post review form */}
       {eventEnded && !submitted && user && (
-        <View style={styles.reviewForm}>
-          <Text style={styles.formTitle}>How was it?</Text>
-          <StarRating rating={myRating} onRate={setMyRating} />
-          <TextInput
-            style={styles.commentInput}
-            value={comment}
-            onChangeText={setComment}
-            placeholder="Share your experience..."
-            placeholderTextColor={colors.textHint}
-            multiline
-            numberOfLines={3}
-          />
+        <View style={[styles.form, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.formTitle, { color: colors.textPrimary }]}>How was it?</Text>
+          <Stars rating={myRating} onRate={setMyRating} />
+          {Platform.OS === 'web' ? (
+            <textarea
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              placeholder="Share your experience..."
+              rows={3}
+              style={{
+                width: '100%', boxSizing: 'border-box', marginTop: 10,
+                backgroundColor: colors.surfaceHigh, color: colors.textPrimary,
+                border: `1.5px solid ${colors.border}`, borderRadius: 10,
+                padding: '10px 12px', fontSize: 14, fontFamily: 'inherit',
+                resize: 'none', outline: 'none',
+              }}
+            />
+          ) : (
+            <View style={[styles.commentInput, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
+              <Text style={{ color: comment ? colors.textPrimary : colors.textHint, fontSize: 14 }}>
+                {comment || 'Share your experience...'}
+              </Text>
+            </View>
+          )}
           <TouchableOpacity
-            style={[styles.submitBtn, submitting && { opacity: 0.5 }]}
-            onPress={handleSubmit}
-            disabled={submitting}
+            style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: submitting ? 0.5 : 1 }]}
+            onPress={handleSubmit} disabled={submitting}
           >
-            <Text style={styles.submitBtnText}>
-              {submitting ? 'Posting...' : 'Post Review'}
-            </Text>
+            <Text style={styles.submitBtnTxt}>{submitting ? 'Posting...' : 'Post Review'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {submitted && (
-        <View style={styles.submittedBadge}>
-          <Text style={styles.submittedText}>✓ You reviewed this event</Text>
-          <StarRating rating={myRating} readonly />
+        <View style={[styles.submittedRow, { backgroundColor: colors.primaryFaint }]}>
+          <Text style={[styles.submittedTxt, { color: colors.primary }]}>✓ You reviewed this event</Text>
+          <Stars rating={myRating} readonly />
         </View>
       )}
 
-      {/* Reviews list */}
-      {reviews.length === 0 ? (
-        <Text style={styles.noReviews}>
-          {eventEnded ? 'No reviews yet. Be the first!' : 'Reviews appear after the event.'}
+      {!eventEnded && (
+        <Text style={[styles.notEnded, { color: colors.textHint }]}>
+          Reviews available after the event ends
         </Text>
-      ) : (
-        reviews.map(r => (
-          <View key={r.id} style={styles.reviewCard}>
-            <View style={styles.reviewHeader}>
-              <Avatar name={r.reviewerName} uri={r.reviewerAvatar} size={32} />
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={styles.reviewerName}>{r.reviewerName || 'Anonymous'}</Text>
-                <StarRating rating={r.rating} readonly />
-              </View>
+      )}
+
+      {/* Review list */}
+      {reviews.map(r => (
+        <View key={r.id} style={[styles.reviewCard, { backgroundColor: colors.surface }]}>
+          <View style={styles.reviewHeader}>
+            <Avatar name={r.reviewerName} uri={r.reviewerAvatar} size={30} />
+            <View style={{ marginLeft: 8, flex: 1 }}>
+              <Text style={[styles.reviewerName, { color: colors.textPrimary }]}>
+                {r.reviewerName || 'Anonymous'}
+              </Text>
+              <Stars rating={r.rating} readonly />
             </View>
-            {r.comment ? <Text style={styles.reviewComment}>{r.comment}</Text> : null}
           </View>
-        ))
+          {r.comment ? <Text style={[styles.reviewComment, { color: colors.textSecondary }]}>{r.comment}</Text> : null}
+        </View>
+      ))}
+
+      {reviews.length === 0 && eventEnded && !submitted && (
+        <Text style={[styles.noReviews, { color: colors.textHint }]}>No reviews yet</Text>
       )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrapper: { paddingTop: 8 },
-  loading: { padding: 20, alignItems: 'center' },
-  sectionTitle: {
-    fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 12,
-  },
-  avgRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16,
-  },
-  avgNum: { fontSize: 28, fontWeight: '900', color: colors.primary },
-  avgCount: { fontSize: 13, color: colors.textSecondary },
-  stars: { flexDirection: 'row', gap: 2 },
-  star: { fontSize: 20, color: colors.border },
-  starFilled: { color: '#FBBF24' },
-  reviewForm: {
-    backgroundColor: colors.surface, borderRadius: 14, padding: 16, marginBottom: 16,
-  },
-  formTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 },
-  commentInput: {
-    backgroundColor: colors.surfaceHigh, borderRadius: 10,
-    padding: 12, fontSize: 14, color: colors.textPrimary,
-    minHeight: 80, textAlignVertical: 'top', marginTop: 10, marginBottom: 12,
-  },
-  submitBtn: {
-    backgroundColor: colors.primary, borderRadius: 10,
-    paddingVertical: 12, alignItems: 'center',
-  },
-  submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  submittedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.primaryFaint, borderRadius: 10,
-    padding: 12, marginBottom: 16,
-  },
-  submittedText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-  noReviews: { fontSize: 14, color: colors.textHint, marginBottom: 16 },
-  reviewCard: {
-    backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 10,
-  },
+  wrapper:      { marginBottom: 8 },
+  avgRow:       { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  avgNum:       { fontSize: 28, fontWeight: '900' },
+  avgCount:     { fontSize: 13 },
+  form:         { borderRadius: 14, padding: 14, marginBottom: 14 },
+  formTitle:    { fontSize: 14, fontWeight: '700', marginBottom: 10 },
+  commentInput: { borderRadius: 10, borderWidth: 1.5, padding: 12, minHeight: 80, marginTop: 10, marginBottom: 12 },
+  submitBtn:    { borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  submitBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  submittedRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, padding: 12, marginBottom: 12 },
+  submittedTxt: { fontSize: 13, fontWeight: '600' },
+  notEnded:     { fontSize: 13, marginBottom: 12 },
+  noReviews:    { fontSize: 13, marginBottom: 8 },
+  reviewCard:   { borderRadius: 12, padding: 12, marginBottom: 8 },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  reviewerName: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-  reviewComment: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  reviewerName: { fontSize: 13, fontWeight: '700' },
+  reviewComment:{ fontSize: 13, lineHeight: 18, marginTop: 4 },
 })

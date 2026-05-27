@@ -1,54 +1,106 @@
+/**
+ * Input.js
+ * WhatsApp-style text input:
+ * - NO blue outline when focused (outline: none on web)
+ * - NO border highlight on focus
+ * - Clean, minimal like WhatsApp chat input
+ */
 import React, { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
-import colors from '../../constants/colors'
+import { View, Text, TextInput, StyleSheet, Platform } from 'react-native'
+import useThemeStore from '../../store/themeStore'
 
-export default function Input({ label, value, onChangeText, placeholder, error, hint, secureTextEntry, keyboardType = 'default', autoCapitalize = 'none', autoComplete, maxLength, multiline = false, numberOfLines = 1, prefix, suffix, onSuffixPress, editable = true, style }) {
+export default function Input({
+  label, value, onChangeText, placeholder,
+  error, hint, multiline, numberOfLines,
+  keyboardType, autoCapitalize, autoComplete,
+  maxLength, secureTextEntry, autoFocus,
+  style, inputStyle,
+}) {
+  const { colors } = useThemeStore()
   const [focused, setFocused] = useState(false)
+
+  const borderColor = error ? colors.error : colors.border
+
   return (
-    <View style={[styles.container, style]}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
-      <View style={[styles.wrap, focused && styles.focused, !!error && styles.hasError, !editable && styles.disabled]}>
-        {prefix ? <Text style={styles.prefix}>{prefix}</Text> : null}
+    <View style={[styles.field, style]}>
+      {label ? (
+        <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      ) : null}
+
+      {Platform.OS === 'web' ? (
+        <textarea
+          value={value}
+          onChange={e => onChangeText(e.target.value)}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          rows={multiline ? (numberOfLines || 4) : 1}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            backgroundColor: colors.surface,
+            color: colors.textPrimary,
+            border: `1.5px solid ${borderColor}`,
+            borderRadius: 10,
+            padding: '13px 14px',
+            fontSize: 15,
+            fontFamily: 'inherit',
+            resize: 'none',
+            outline: 'none',        // removes blue outline on web
+            WebkitAppearance: 'none',
+            lineHeight: '1.5',
+            minHeight: multiline ? 100 : 48,
+          }}
+        />
+      ) : (
         <TextInput
-          style={[styles.input, multiline && styles.multiline]}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.surface,
+              borderColor,
+              color: colors.textPrimary,
+              minHeight: multiline ? (numberOfLines || 4) * 24 : 48,
+              textAlignVertical: multiline ? 'top' : 'center',
+            },
+            inputStyle,
+          ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={colors.textHint}
-          secureTextEntry={secureTextEntry}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
           keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
+          autoCapitalize={autoCapitalize || 'none'}
           autoComplete={autoComplete}
           maxLength={maxLength}
-          multiline={multiline}
-          numberOfLines={multiline ? numberOfLines : 1}
-          editable={editable}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          textAlignVertical={multiline ? 'top' : 'auto'}
+          secureTextEntry={secureTextEntry}
+          autoFocus={autoFocus}
+          // Remove focus glow on native
+          selectionColor={colors.primary}
+          underlineColorAndroid="transparent"
         />
-        {suffix ? (
-          <TouchableOpacity onPress={onSuffixPress} disabled={!onSuffixPress}>
-            <Text style={styles.suffix}>{suffix}</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-      {error ? <Text style={styles.error}>{error}</Text> : hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      )}
+
+      {error ? (
+        <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
+      ) : hint ? (
+        <Text style={[styles.hint, { color: colors.textHint }]}>{hint}</Text>
+      ) : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  wrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14 },
-  focused: { borderColor: colors.primary },
-  hasError: { borderColor: colors.error },
-  disabled: { opacity: 0.5 },
-  input: { flex: 1, fontSize: 16, color: colors.textPrimary, paddingVertical: 14 },
-  multiline: { minHeight: 100, paddingTop: 14 },
-  prefix: { fontSize: 16, color: colors.textSecondary, marginRight: 4, fontWeight: '700' },
-  suffix: { fontSize: 14, color: colors.primary, fontWeight: '700', marginLeft: 4 },
-  error: { fontSize: 12, color: colors.error, marginTop: 4, marginLeft: 2 },
-  hint:  { fontSize: 12, color: colors.textHint, marginTop: 4, marginLeft: 2 },
+  field:  { marginBottom: 14 },
+  label:  { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  input: {
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 15,
+  },
+  error: { fontSize: 12, marginTop: 4 },
+  hint:  { fontSize: 11, marginTop: 4 },
 })

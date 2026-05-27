@@ -1,12 +1,18 @@
 /**
  * CommentSection.js
- * Only people who have joined the event can post comments.
- * Anyone can read them.
+ * WhatsApp-style comments:
+ * - Latest comment at BOTTOM
+ * - Auto-scrolls to bottom on new comment
+ * - Author can delete their own comment
+ * - Organizer OR attendee can comment
+ * - NO blue outline on input
+ * - Screen doesn't zoom on focus (handled via viewport in index.html)
  */
 import React, { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, Alert, ActivityIndicator,
+  Platform, KeyboardAvoidingView,
 } from 'react-native'
 import useThemeStore  from '../../store/themeStore'
 import useAuthStore   from '../../store/authStore'
@@ -16,31 +22,30 @@ import { commentsApi } from '../../services/api'
 
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr)) / 1000
-  if (diff < 60)    return 'just now'
-  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
+  if (diff < 60)    return 'now'
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  return `${Math.floor(diff / 86400)}d`
 }
 
-export default function CommentSection({ eventId, onRequireAuth }) {
-  const { colors }      = useThemeStore()
-  const { user }        = useAuthStore()
-  const { isAttending } = useEventsStore()
+export default function CommentSection({ eventId, isOrganizer }) {
+  const { colors }             = useThemeStore()
+  const { user }               = useAuthStore()
+  const { isAttending }        = useEventsStore()
 
-  const [comments, setComments]   = useState([])
-  const [text, setText]           = useState('')
-  const [loading, setLoading]     = useState(true)
-  const [sending, setSending]     = useState(false)
-  const scrollRef                 = useRef(null)
+  const [comments, setComments] = useState([])
+  const [text, setText]         = useState('')
+  const [loading, setLoading]   = useState(true)
+  const [sending, setSending]   = useState(false)
+  const scrollRef               = useRef(null)
 
-  // Only attendees can post
   const hasJoined  = isAttending(eventId)
-  const canComment = user && hasJoined
+  const canComment = user && (hasJoined || isOrganizer)
 
   useEffect(() => {
     loadComments()
-    const interval = setInterval(loadComments, 30000)
-    return () => clearInterval(interval)
+    const iv = setInterval(loadComments, 30000)
+    return () => clearInterval(iv)
   }, [eventId])
 
   async function loadComments() {
@@ -52,18 +57,13 @@ export default function CommentSection({ eventId, onRequireAuth }) {
   }
 
   async function handleSend() {
-    if (!user) { onRequireAuth?.(); return }
-    if (!hasJoined) {
-      Alert.alert('Join first', 'You need to join this event to comment.')
-      return
-    }
     if (!text.trim()) return
-
     setSending(true)
     try {
       const data = await commentsApi.post(eventId, text.trim())
       setComments(prev => [...prev, data.comment])
       setText('')
+      // Scroll to bottom — WhatsApp behaviour
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
     } catch (err) {
       Alert.alert('Could not post', err.message)
@@ -73,7 +73,7 @@ export default function CommentSection({ eventId, onRequireAuth }) {
   }
 
   async function handleDelete(commentId) {
-    Alert.alert('Delete comment?', '', [
+    Alert.alert('Delete?', '', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
@@ -89,75 +89,112 @@ export default function CommentSection({ eventId, onRequireAuth }) {
     ])
   }
 
+  // Scroll to bottom when comments load
+  useEffect(() => {
+    if (comments.length > 0 && !loading) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 50)
+    }
+  }, [loading])
+
   return (
     <View style={styles.wrapper}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Comments {comments.length > 0 ? `(${comments.length})` : ''}
-        </Text>
-        {!canComment && user && !hasJoined && (
-          <Text style={[styles.joinNote, { color: colors.textHint }]}>
-            Join event to comment
-          </Text>
-        )}
-      </View>
-
-      {/* Comment list */}
       {loading ? (
-        <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 16 }} />
+        <ActivityIndicator size="small" color={colors.primary} />
       ) : comments.length === 0 ? (
         <Text style={[styles.empty, { color: colors.textHint }]}>
-          No comments yet.{canComment ? ' Ask a question!' : ''}
+          {canComment ? 'No comments yet. Be the first!' : 'No comments yet.'}
         </Text>
       ) : (
         <ScrollView
           ref={scrollRef}
-          style={{ maxHeight: 280 }}
+          style={{ maxHeight: 300 }}
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled
+          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
         >
-          {comments.map(c => (
-            <View key={c.id} style={[styles.comment, { backgroundColor: colors.surface }]}>
-              <Avatar uri={c.authorAvatar} name={c.authorName} size={30} />
-              <View style={styles.commentBody}>
-                <View style={styles.commentHeader}>
-                  <Text style={[styles.authorName, { color: colors.textPrimary }]}>
-                    {c.authorName || 'Anonymous'}
-                  </Text>
-                  <Text style={[styles.commentTime, { color: colors.textHint }]}>
-                    {timeAgo(c.createdAt)}
-                  </Text>
-                </View>
-                <Text style={[styles.commentText, { color: colors.textSecondary }]}>
+          {comments.map((c, i) => {
+            const isMe = user?.id === c.userId
+            return (
+              <View
+                key={c.id}
+                style={[
+                  styles.bubble,
+                  isMe
+                    ? [styles.bubbleMe, { backgroundColor: colors.primary }]
+                    : [styles.bubbleOther, { backgroundColor: colors.surface }],
+                ]}
+              >
+                {/* Show avatar + name for others only */}
+                {!isMe && (
+                  <View style={styles.bubbleHeader}>
+                    <Avatar uri={c.authorAvatar} name={c.authorName} size={20} />
+                    <Text style={[styles.authorName, { color: colors.primary }]}>
+                      {c.authorName || 'Anonymous'}
+                    </Text>
+                  </View>
+                )}
+
+                <Text style={[
+                  styles.bubbleText,
+                  { color: isMe ? '#fff' : colors.textPrimary }
+                ]}>
                   {c.text}
                 </Text>
+
+                <View style={styles.bubbleFooter}>
+                  <Text style={[
+                    styles.bubbleTime,
+                    { color: isMe ? 'rgba(255,255,255,0.65)' : colors.textHint }
+                  ]}>
+                    {timeAgo(c.createdAt)}
+                  </Text>
+                  {isMe && (
+                    <TouchableOpacity
+                      onPress={() => handleDelete(c.id)}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>Delete</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              {user?.id === c.userId && (
-                <TouchableOpacity
-                  onPress={() => handleDelete(c.id)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={{ color: colors.textHint, fontSize: 18 }}>×</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
+            )
+          })}
+          <View style={{ height: 8 }} />
         </ScrollView>
       )}
 
-      {/* Input — only shown if user has joined */}
+      {/* Input row */}
       {canComment ? (
-        <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <TextInput
-            style={[styles.input, { color: colors.textPrimary }]}
-            value={text}
-            onChangeText={setText}
-            placeholder="Ask a question..."
-            placeholderTextColor={colors.textHint}
-            multiline
-            maxLength={500}
-          />
+        <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          {Platform.OS === 'web' ? (
+            <input
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+              placeholder="Write a comment..."
+              maxLength={500}
+              style={{
+                flex: 1, border: 'none', outline: 'none',
+                backgroundColor: 'transparent',
+                color: colors.textPrimary,
+                fontSize: 14, fontFamily: 'inherit',
+                padding: '0 8px', minWidth: 0,
+              }}
+            />
+          ) : (
+            <TextInput
+              style={[styles.input, { color: colors.textPrimary }]}
+              value={text}
+              onChangeText={setText}
+              placeholder="Write a comment..."
+              placeholderTextColor={colors.textHint}
+              multiline
+              maxLength={500}
+              selectionColor={colors.primary}
+              underlineColorAndroid="transparent"
+            />
+          )}
           <TouchableOpacity
             style={[
               styles.sendBtn,
@@ -173,12 +210,9 @@ export default function CommentSection({ eventId, onRequireAuth }) {
           </TouchableOpacity>
         </View>
       ) : (
-        // Show why they can't comment
         <View style={[styles.lockedRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.lockedTxt, { color: colors.textHint }]}>
-            {!user
-              ? 'Sign in and join this event to comment'
-              : 'Join this event to comment'}
+            {!user ? 'Sign in and join to comment' : 'Join this event to comment'}
           </Text>
         </View>
       )}
@@ -187,32 +221,48 @@ export default function CommentSection({ eventId, onRequireAuth }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper:  { marginTop: 8, marginBottom: 16 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  title:    { fontSize: 16, fontWeight: '800' },
-  joinNote: { fontSize: 12 },
-  empty:    { fontSize: 14, marginBottom: 12 },
-  comment: {
-    flexDirection: 'row', borderRadius: 10,
-    padding: 10, marginBottom: 8, gap: 8, alignItems: 'flex-start',
+  wrapper: { marginBottom: 8 },
+  empty:   { fontSize: 13, marginBottom: 10 },
+
+  // WhatsApp-style bubbles
+  bubble: {
+    maxWidth: '80%', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 8,
+    marginBottom: 6,
   },
-  commentBody:   { flex: 1 },
-  commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 },
-  authorName:    { fontSize: 13, fontWeight: '700' },
-  commentTime:   { fontSize: 11 },
-  commentText:   { fontSize: 13, lineHeight: 18 },
+  bubbleMe: {
+    alignSelf: 'flex-end',
+    borderBottomRightRadius: 3,
+  },
+  bubbleOther: {
+    alignSelf: 'flex-start',
+    borderBottomLeftRadius: 3,
+  },
+  bubbleHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
+  authorName:   { fontSize: 11, fontWeight: '700' },
+  bubbleText:   { fontSize: 14, lineHeight: 19 },
+  bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 3 },
+  bubbleTime:   { fontSize: 10 },
+
+  // Input
   inputRow: {
-    flexDirection: 'row', alignItems: 'flex-end',
-    borderWidth: 1.5, borderRadius: 12,
-    paddingLeft: 12, paddingRight: 6, paddingVertical: 6,
-    gap: 8, marginTop: 8,
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1.5, borderRadius: 24,
+    paddingLeft: 14, paddingRight: 6,
+    paddingVertical: 6, gap: 8, marginTop: 10,
   },
-  input:    { flex: 1, fontSize: 14, maxHeight: 80, paddingVertical: 4 },
-  sendBtn:  { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  input: {
+    flex: 1, fontSize: 14, maxHeight: 80,
+    paddingVertical: 4,
+  },
+  sendBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+  },
   sendBtnTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
   lockedRow: {
     borderWidth: 1.5, borderRadius: 12,
-    padding: 14, marginTop: 8, alignItems: 'center',
+    padding: 12, marginTop: 8, alignItems: 'center',
   },
   lockedTxt: { fontSize: 13 },
 })
