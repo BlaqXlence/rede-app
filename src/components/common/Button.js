@@ -1,45 +1,42 @@
 import React from 'react'
-import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, View } from 'react-native'
+import { TouchableOpacity, Text, ActivityIndicator, StyleSheet } from 'react-native'
 import useThemeStore from '../../store/themeStore'
 
-export default function Button({ label, onPress, variant = 'primary', size = 'md', loading = false, disabled = false, icon = null, style }) {
-  const isDisabled = disabled || loading
+export default function Button({ label, onPress, variant = 'primary', loading, disabled, style }) {
+  const { colors } = useThemeStore()
+
+  const bgColor = variant === 'primary'   ? colors.primary
+               : variant === 'danger'    ? colors.error
+               : 'transparent'
+
+  const textColor = variant === 'secondary' || variant === 'ghost'
+    ? colors.primary : '#fff'
+
+  const borderStyle = variant === 'secondary'
+    ? { borderWidth: 1.5, borderColor: colors.primary } : {}
+
   return (
     <TouchableOpacity
+      style={[
+        styles.base,
+        { backgroundColor: bgColor },
+        borderStyle,
+        (disabled || loading) && { opacity: 0.5 },
+        style,
+      ]}
       onPress={onPress}
-      disabled={isDisabled}
-      activeOpacity={0.8}
-      style={[styles.base, styles[variant], styles[`size_${size}`], isDisabled && styles.disabled, style]}
+      disabled={disabled || loading}
+      activeOpacity={0.85}
     >
-      {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#fff' : colors.primary} size="small" />
-      ) : (
-        <View style={styles.inner}>
-          {icon && <View style={{ marginRight: 8 }}>{icon}</View>}
-          <Text style={[styles.label, styles[`label_${variant}`], styles[`labelSize_${size}`]]}>{label}</Text>
-        </View>
-      )}
+      {loading
+        ? <ActivityIndicator color={textColor} />
+        : <Text style={[styles.label, { color: textColor }]}>{label}</Text>
+      }
     </TouchableOpacity>
   )
 }
 
 const styles = StyleSheet.create({
-  base: { borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  inner: { flexDirection: 'row', alignItems: 'center' },
-  primary:   { backgroundColor: colors.primary },
-  secondary: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
-  ghost:     { backgroundColor: 'transparent' },
-  danger:    { backgroundColor: colors.error },
-  size_sm:   { paddingVertical: 8,  paddingHorizontal: 16 },
-  size_md:   { paddingVertical: 14, paddingHorizontal: 24 },
-  size_lg:   { paddingVertical: 16, paddingHorizontal: 32 },
-  disabled:  { opacity: 0.4 },
-  label:     { fontWeight: '700', letterSpacing: 0.2 },
-  label_primary:   { color: '#fff' },
-  label_secondary: { color: colors.primary },
-  label_ghost:     { color: colors.primary },
-  label_danger:    { color: '#fff' },
-  labelSize_sm: { fontSize: 13 },
-  labelSize_md: { fontSize: 15 },
-  labelSize_lg: { fontSize: 16 },
+  base:  { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  label: { fontSize: 15, fontWeight: '700' },
 })

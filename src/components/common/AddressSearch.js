@@ -1,25 +1,20 @@
-/**
- * AddressSearch.js
- * Autocomplete powered by OpenStreetMap Nominatim — no API key, Uganda-scoped.
- * Returns { name, address, lat, lng } so events can be geo-sorted.
- */
 import React, { useState, useRef, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
 import useThemeStore from '../../store/themeStore'
 
 export default function AddressSearch({ value, onSelect, error }) {
+  const { colors }      = useThemeStore()
   const [query, setQuery]       = useState(value?.name || '')
   const [results, setResults]   = useState([])
   const [loading, setLoading]   = useState(false)
   const [showList, setShowList] = useState(false)
-  const timer                   = useRef(null)
+  const timer = useRef(null)
 
   const search = useCallback((text) => {
     setQuery(text)
     setShowList(false)
     clearTimeout(timer.current)
     if (text.trim().length < 3) { setResults([]); return }
-
     timer.current = setTimeout(async () => {
       setLoading(true)
       try {
@@ -45,23 +40,22 @@ export default function AddressSearch({ value, onSelect, error }) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>VENUE / LOCATION</Text>
-      <View style={[styles.row, error && styles.rowError]}>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>VENUE / LOCATION</Text>
+      <View style={[styles.row, { backgroundColor: colors.surface, borderColor: error ? colors.error : colors.border }]}>
         <Text style={{ fontSize: 16 }}>📍</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.textPrimary }]}
           value={query}
           onChangeText={search}
-          placeholder="Search venue or area in Uganda..."
+          placeholder="Search venue in Uganda..."
           placeholderTextColor={colors.textHint}
           autoCorrect={false}
-          autoCapitalize="words"
         />
         {loading && <ActivityIndicator size="small" color={colors.primary} />}
       </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
       {showList && results.length > 0 && (
-        <View style={styles.dropdown}>
+        <View style={[styles.dropdown, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
           {results.map((place, i) => {
             const addr = place.address || {}
             const name = addr.amenity || addr.building || addr.road || place.display_name.split(',')[0]
@@ -69,11 +63,11 @@ export default function AddressSearch({ value, onSelect, error }) {
             return (
               <TouchableOpacity
                 key={place.place_id || i}
-                style={[styles.result, i < results.length - 1 && styles.resultBorder]}
+                style={[styles.result, i < results.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
                 onPress={() => pick(place)}
               >
-                <Text style={styles.resultName} numberOfLines={1}>{name}</Text>
-                <Text style={styles.resultSub}  numberOfLines={1}>{sub}</Text>
+                <Text style={[styles.resultName, { color: colors.textPrimary }]} numberOfLines={1}>{name}</Text>
+                <Text style={[styles.resultSub,  { color: colors.textSecondary }]} numberOfLines={1}>{sub}</Text>
               </TouchableOpacity>
             )
           })}
@@ -84,15 +78,13 @@ export default function AddressSearch({ value, onSelect, error }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 16, zIndex: 99 },
-  label: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, gap: 8 },
-  rowError: { borderColor: colors.error },
-  input: { flex: 1, fontSize: 15, color: colors.textPrimary, paddingVertical: 13 },
-  error: { fontSize: 12, color: colors.error, marginTop: 4 },
-  dropdown: { backgroundColor: colors.surfaceHigh, borderRadius: 10, borderWidth: 1, borderColor: colors.border, marginTop: 4, overflow: 'hidden' },
-  result: { paddingHorizontal: 14, paddingVertical: 12 },
-  resultBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  resultName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 },
-  resultSub: { fontSize: 12, color: colors.textSecondary },
+  wrap:       { marginBottom: 16, zIndex: 99 },
+  label:      { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  row:        { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, gap: 8 },
+  input:      { flex: 1, fontSize: 15, paddingVertical: 13 },
+  error:      { fontSize: 12, marginTop: 4 },
+  dropdown:   { borderRadius: 10, borderWidth: 1, marginTop: 4, overflow: 'hidden' },
+  result:     { paddingHorizontal: 14, paddingVertical: 12 },
+  resultName: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  resultSub:  { fontSize: 12 },
 })
