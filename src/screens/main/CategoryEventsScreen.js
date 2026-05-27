@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore  from '../../store/themeStore'
 import useEventsStore from '../../store/eventsStore'
 import EventCard, { CARD_WIDTH_HORIZ } from '../../components/events/EventCard'
+import BottomNav from '../../components/common/BottomNav'
 
 export default function CategoryEventsScreen({ navigation, route }) {
   const { categoryId, title } = route.params
@@ -20,12 +21,13 @@ export default function CategoryEventsScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Header with back */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={[styles.backTxt, { color: colors.primary }]}>←</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={[styles.back, { color: colors.primary }]}>←</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
-        <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+        <View style={[styles.count, { backgroundColor: colors.primary }]}>
           <Text style={styles.countTxt}>{events.length}</Text>
         </View>
       </View>
@@ -48,6 +50,8 @@ export default function CategoryEventsScreen({ navigation, route }) {
           )}
         />
       )}
+
+      <BottomNav navigation={navigation} activeTab="Home" />
     </SafeAreaView>
   )
 }
@@ -55,13 +59,12 @@ export default function CategoryEventsScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, gap: 12 },
-  back: { padding: 4 },
-  backTxt: { fontSize: 22, fontWeight: '700' },
+  back: { fontSize: 22, fontWeight: '700' },
   title: { flex: 1, fontSize: 17, fontWeight: '800' },
-  countBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  count: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   countTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  list: { padding: 16, paddingBottom: 80 },
-  row: { gap: 10, marginBottom: 0 },
+  list: { padding: 16, paddingBottom: 10 },
+  row: { gap: 10 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyTxt: { fontSize: 15 },
 })

@@ -1,3 +1,9 @@
+/**
+ * navigation/index.js
+ * Tab navigator for main screens.
+ * Stack screens (EventDetail, Search etc) also show BottomNav
+ * so the user always has navigation available.
+ */
 import React, { useEffect } from 'react'
 import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native'
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'
@@ -27,25 +33,25 @@ const AuthStack = createNativeStackNavigator()
 const MainStack = createNativeStackNavigator()
 const Tab       = createBottomTabNavigator()
 
-function HomeIcon({ color, size }) {
+function HomeIcon({ color }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path d="M3 12L12 4l9 8" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
       <Path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   )
 }
-function PlusIcon({ color, size }) {
+function PlusIcon({ color }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.8"/>
       <Path d="M12 8v8M8 12h8" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
     </Svg>
   )
 }
-function ProfileIcon({ color, size }) {
+function UserIcon({ color }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth="1.8"/>
       <Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
     </Svg>
@@ -70,9 +76,9 @@ function MainTabs() {
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ color }) => {
-          if (route.name === 'Home')    return <HomeIcon    color={color} size={22} />
-          if (route.name === 'Create')  return <PlusIcon    color={color} size={22} />
-          if (route.name === 'Profile') return <ProfileIcon color={color} size={22} />
+          if (route.name === 'Home')    return <HomeIcon color={color} />
+          if (route.name === 'Create')  return <PlusIcon color={color} />
+          if (route.name === 'Profile') return <UserIcon color={color} />
         },
       })}
     >

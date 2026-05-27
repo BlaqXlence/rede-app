@@ -1,38 +1,44 @@
 /**
  * CommentSection.js
- * Live comment thread under each event.
- * Polls every 30 seconds for new comments.
+ * Only people who have joined the event can post comments.
+ * Anyone can read them.
  */
 import React, { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native'
-import useThemeStore from '../../store/themeStore'
-import useAuthStore  from '../../store/authStore'
-import Avatar        from '../common/Avatar'
+import useThemeStore  from '../../store/themeStore'
+import useAuthStore   from '../../store/authStore'
+import useEventsStore from '../../store/eventsStore'
+import Avatar         from '../common/Avatar'
 import { commentsApi } from '../../services/api'
 
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr)) / 1000
-  if (diff < 60)   return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 60)    return 'just now'
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
   return `${Math.floor(diff / 86400)}d ago`
 }
 
 export default function CommentSection({ eventId, onRequireAuth }) {
-  const { colors }    = useThemeStore()
-  const { user }      = useAuthStore()
+  const { colors }      = useThemeStore()
+  const { user }        = useAuthStore()
+  const { isAttending } = useEventsStore()
+
   const [comments, setComments]   = useState([])
   const [text, setText]           = useState('')
   const [loading, setLoading]     = useState(true)
   const [sending, setSending]     = useState(false)
   const scrollRef                 = useRef(null)
 
+  // Only attendees can post
+  const hasJoined  = isAttending(eventId)
+  const canComment = user && hasJoined
+
   useEffect(() => {
     loadComments()
-    // Poll every 30 seconds for new comments
     const interval = setInterval(loadComments, 30000)
     return () => clearInterval(interval)
   }, [eventId])
@@ -47,13 +53,17 @@ export default function CommentSection({ eventId, onRequireAuth }) {
 
   async function handleSend() {
     if (!user) { onRequireAuth?.(); return }
+    if (!hasJoined) {
+      Alert.alert('Join first', 'You need to join this event to comment.')
+      return
+    }
     if (!text.trim()) return
+
     setSending(true)
     try {
       const data = await commentsApi.post(eventId, text.trim())
       setComments(prev => [...prev, data.comment])
       setText('')
-      // Scroll to bottom
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
     } catch (err) {
       Alert.alert('Could not post', err.message)
@@ -81,26 +91,35 @@ export default function CommentSection({ eventId, onRequireAuth }) {
 
   return (
     <View style={styles.wrapper}>
-      <Text style={[styles.title, { color: colors.textPrimary }]}>
-        Comments {comments.length > 0 ? `(${comments.length})` : ''}
-      </Text>
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Comments {comments.length > 0 ? `(${comments.length})` : ''}
+        </Text>
+        {!canComment && user && !hasJoined && (
+          <Text style={[styles.joinNote, { color: colors.textHint }]}>
+            Join event to comment
+          </Text>
+        )}
+      </View>
 
+      {/* Comment list */}
       {loading ? (
         <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 16 }} />
       ) : comments.length === 0 ? (
         <Text style={[styles.empty, { color: colors.textHint }]}>
-          No comments yet. Ask a question!
+          No comments yet.{canComment ? ' Ask a question!' : ''}
         </Text>
       ) : (
         <ScrollView
           ref={scrollRef}
-          style={{ maxHeight: 300 }}
+          style={{ maxHeight: 280 }}
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled
         >
           {comments.map(c => (
             <View key={c.id} style={[styles.comment, { backgroundColor: colors.surface }]}>
-              <Avatar uri={c.authorAvatar} name={c.authorName} size={32} />
+              <Avatar uri={c.authorAvatar} name={c.authorName} size={30} />
               <View style={styles.commentBody}>
                 <View style={styles.commentHeader}>
                   <Text style={[styles.authorName, { color: colors.textPrimary }]}>
@@ -115,8 +134,11 @@ export default function CommentSection({ eventId, onRequireAuth }) {
                 </Text>
               </View>
               {user?.id === c.userId && (
-                <TouchableOpacity onPress={() => handleDelete(c.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={{ color: colors.textHint, fontSize: 16 }}>×</Text>
+                <TouchableOpacity
+                  onPress={() => handleDelete(c.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={{ color: colors.textHint, fontSize: 18 }}>×</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -124,49 +146,73 @@ export default function CommentSection({ eventId, onRequireAuth }) {
         </ScrollView>
       )}
 
-      {/* Input */}
-      <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <TextInput
-          style={[styles.input, { color: colors.textPrimary }]}
-          value={text}
-          onChangeText={setText}
-          placeholder={user ? 'Ask a question...' : 'Sign in to comment'}
-          placeholderTextColor={colors.textHint}
-          multiline
-          maxLength={500}
-          onFocus={() => { if (!user) onRequireAuth?.() }}
-        />
-        <TouchableOpacity
-          style={[styles.sendBtn, { backgroundColor: colors.primary, opacity: (!text.trim() || sending) ? 0.4 : 1 }]}
-          onPress={handleSend}
-          disabled={!text.trim() || sending}
-        >
-          {sending
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <Text style={styles.sendBtnTxt}>↑</Text>
-          }
-        </TouchableOpacity>
-      </View>
+      {/* Input — only shown if user has joined */}
+      {canComment ? (
+        <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <TextInput
+            style={[styles.input, { color: colors.textPrimary }]}
+            value={text}
+            onChangeText={setText}
+            placeholder="Ask a question..."
+            placeholderTextColor={colors.textHint}
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendBtn,
+              { backgroundColor: colors.primary, opacity: (!text.trim() || sending) ? 0.4 : 1 }
+            ]}
+            onPress={handleSend}
+            disabled={!text.trim() || sending}
+          >
+            {sending
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Text style={styles.sendBtnTxt}>↑</Text>
+            }
+          </TouchableOpacity>
+        </View>
+      ) : (
+        // Show why they can't comment
+        <View style={[styles.lockedRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.lockedTxt, { color: colors.textHint }]}>
+            {!user
+              ? 'Sign in and join this event to comment'
+              : 'Join this event to comment'}
+          </Text>
+        </View>
+      )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrapper: { marginTop: 8, marginBottom: 16 },
-  title:   { fontSize: 16, fontWeight: '800', marginBottom: 12 },
-  empty:   { fontSize: 14, marginBottom: 12 },
-  comment: { flexDirection: 'row', borderRadius: 12, padding: 10, marginBottom: 8, gap: 10, alignItems: 'flex-start' },
-  commentBody: { flex: 1 },
+  wrapper:  { marginTop: 8, marginBottom: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  title:    { fontSize: 16, fontWeight: '800' },
+  joinNote: { fontSize: 12 },
+  empty:    { fontSize: 14, marginBottom: 12 },
+  comment: {
+    flexDirection: 'row', borderRadius: 10,
+    padding: 10, marginBottom: 8, gap: 8, alignItems: 'flex-start',
+  },
+  commentBody:   { flex: 1 },
   commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 },
-  authorName:  { fontSize: 13, fontWeight: '700' },
-  commentTime: { fontSize: 11 },
-  commentText: { fontSize: 14, lineHeight: 19 },
+  authorName:    { fontSize: 13, fontWeight: '700' },
+  commentTime:   { fontSize: 11 },
+  commentText:   { fontSize: 13, lineHeight: 18 },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end',
-    borderWidth: 1.5, borderRadius: 12, paddingLeft: 12,
-    paddingRight: 6, paddingVertical: 6, gap: 8, marginTop: 8,
+    borderWidth: 1.5, borderRadius: 12,
+    paddingLeft: 12, paddingRight: 6, paddingVertical: 6,
+    gap: 8, marginTop: 8,
   },
-  input: { flex: 1, fontSize: 14, maxHeight: 80, paddingVertical: 4 },
-  sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  input:    { flex: 1, fontSize: 14, maxHeight: 80, paddingVertical: 4 },
+  sendBtn:  { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   sendBtnTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  lockedRow: {
+    borderWidth: 1.5, borderRadius: 12,
+    padding: 14, marginTop: 8, alignItems: 'center',
+  },
+  lockedTxt: { fontSize: 13 },
 })
