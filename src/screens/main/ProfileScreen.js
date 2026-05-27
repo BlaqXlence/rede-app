@@ -18,14 +18,17 @@ import Avatar         from '../../components/common/Avatar'
 import EventCard      from '../../components/events/EventCard'
 import { uploadApi }  from '../../services/api'
 
-const TABS = ['My Events', 'Attending', 'Settings']
+const TABS = ['My Events', 'Attending', 'Liked', 'Settings']
 
 export default function ProfileScreen({ navigation }) {
   const { colors, isDark, toggle: toggleTheme } = useThemeStore()
   const { user, logout, updateProfile }         = useAuthStore()
-  const { events, attending }                   = useEventsStore()
+  const { events, attending, likedEvents, loadLiked } = useEventsStore()
 
   const [activeTab, setActiveTab]   = useState('My Events')
+
+  // Load liked events from storage on mount
+  React.useEffect(() => { loadLiked() }, [])
   const [editModal, setEditModal]   = useState(false)
   const [editField, setEditField]   = useState('')
   const [editValue, setEditValue]   = useState('')
@@ -33,6 +36,7 @@ export default function ProfileScreen({ navigation }) {
 
   const myEvents        = events.filter(e => e.organizer?.id === user?.id)
   const attendingEvents = events.filter(e => attending.includes(e.id))
+  const likedEventsList = events.filter(e => likedEvents.includes(e.id))
 
   function openEvent(e) { navigation.navigate('EventDetail', { eventId: e.id, event: e }) }
 
@@ -207,6 +211,24 @@ export default function ProfileScreen({ navigation }) {
             ) : (
               <View style={styles.grid}>
                 {attendingEvents.map(e => <EventCard key={e.id} event={e} onPress={openEvent} style={{ marginBottom: 10 }} />)}
+              </View>
+            )}
+          </View>
+        )}
+
+
+        {/* Liked events */}
+        {activeTab === 'Liked' && (
+          <View style={styles.section}>
+            {likedEventsList.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={{ fontSize: 36 }}>🤍</Text>
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No liked events yet</Text>
+                <Text style={[styles.emptyTxt, { color: colors.textHint }]}>Tap ♡ on any event to save it here</Text>
+              </View>
+            ) : (
+              <View style={styles.grid}>
+                {likedEventsList.map(e => <EventCard key={e.id} event={e} onPress={openEvent} style={{ marginBottom: 10 }} />)}
               </View>
             )}
           </View>

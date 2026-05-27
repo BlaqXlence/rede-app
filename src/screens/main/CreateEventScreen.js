@@ -10,7 +10,7 @@ import {
   StyleSheet, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import colors from '../../constants/colors'
+import useThemeStore from '../../store/themeStore'
 import Input from '../../components/common/Input'
 import { DatePicker, TimePicker } from '../../components/common/DateTimePicker'
 import LocationPicker from '../../components/common/LocationPicker'
@@ -29,6 +29,7 @@ const BLANK = {
 }
 
 export default function CreateEventScreen({ navigation }) {
+  const { colors } = useThemeStore()
   const [step, setStep]       = useState(1)
   const [form, setForm]       = useState(BLANK)
   const [errors, setErrors]   = useState({})

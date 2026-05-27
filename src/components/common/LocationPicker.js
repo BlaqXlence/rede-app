@@ -18,10 +18,11 @@ import {
   StyleSheet, Modal, ScrollView,
   TouchableWithoutFeedback, Platform,
 } from 'react-native'
-import colors from '../../constants/colors'
+import useThemeStore from '../../store/themeStore'
 import { UGANDA_CITIES, KAMPALA_AREAS } from '../../constants/config'
 
 export default function LocationPicker({ value, onChange, error }) {
+  const { colors } = useThemeStore()
   const [showCityModal, setShowCityModal]   = useState(false)
   const [showAreaModal, setShowAreaModal]   = useState(false)
   const [mapsLink, setMapsLink]             = useState(value?.mapsLink || '')

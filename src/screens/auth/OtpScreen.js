@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import colors from '../../constants/colors'
+import useThemeStore from '../../store/themeStore'
 import Button from '../../components/common/Button'
 import useAuthStore from '../../store/authStore'
 
@@ -10,6 +10,7 @@ const RESEND = 30
 
 export default function OtpScreen({ navigation, route }) {
   const { phone } = route.params
+  const { colors } = useThemeStore()
   const [digits, setDigits] = useState(Array(LEN).fill(''))
   const [loading, setLoading] = useState(false)
   const [timer, setTimer] = useState(RESEND)

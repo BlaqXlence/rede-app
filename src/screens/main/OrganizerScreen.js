@@ -40,8 +40,9 @@ export default function OrganizerScreen({ navigation, route }) {
   }
 
   const now      = new Date()
-  const upcoming = data?.events?.filter(e => new Date(e.endTime) > now) || []
-  const past     = data?.events?.filter(e => new Date(e.endTime) <= now) || []
+  // Check both camelCase and snake_case since API responses may vary
+  const upcoming = data?.events?.filter(e => new Date(e.endTime || e.end_time) > now) || []
+  const past     = data?.events?.filter(e => new Date(e.endTime || e.end_time) <= now) || []
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>

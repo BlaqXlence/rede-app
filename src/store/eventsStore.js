@@ -24,6 +24,7 @@ const useEventsStore = create((set, get) => ({
   recentSearches:   [],
   selectedCategory: 'all',
   isLoadingEvents:  false,
+  likedEvents:      [],    // event IDs the user has liked (heart)
 
   requestLocation: async () => {
     try {
@@ -198,9 +199,26 @@ const useEventsStore = create((set, get) => ({
     }
   },
 
+  toggleLike: async (eventId) => {
+    const liked = get().likedEvents
+    const updated = liked.includes(eventId)
+      ? liked.filter(id => id !== eventId)
+      : [...liked, eventId]
+    set({ likedEvents: updated })
+    await AsyncStorage.setItem('rede:liked', JSON.stringify(updated))
+  },
+
+  loadLiked: async () => {
+    const saved = await AsyncStorage.getItem('rede:liked')
+    if (saved) set({ likedEvents: JSON.parse(saved) })
+  },
+
+  isLiked: (eventId) => get().likedEvents.includes(eventId),
   setEventsLocal: (events) => set({ events }),
   isAttending:    (id) => get().attending.includes(id),
   getEventById:   (id) => get().events.find(e => e.id === id),
 }))
 
 export default useEventsStore
+
+// ── Liked events (persisted to AsyncStorage) ──────────────────

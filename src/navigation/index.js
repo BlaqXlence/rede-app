@@ -1,10 +1,10 @@
 /**
  * navigation/index.js
- * Tab navigator for main screens.
- * Stack screens (EventDetail, Search etc) also show BottomNav
- * so the user always has navigation available.
+ *
+ * Deep linking: rede-app.netlify.app?event=EVENT_ID opens that event directly.
+ * Reads window.location.search on web startup, then navigates after auth resolves.
  */
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native'
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
@@ -113,10 +113,21 @@ function AuthNavigator() {
   )
 }
 
+// Reads ?event=ID from the browser URL on web
+function getEventIdFromUrl() {
+  if (Platform.OS !== 'web') return null
+  try {
+    return new URLSearchParams(window.location.search).get('event') || null
+  } catch {
+    return null
+  }
+}
+
 export default function RootNavigator() {
   const { isAuthenticated, isLoading, initialize } = useAuthStore()
   const { requestLocation, loadRecentSearches }    = useEventsStore()
   const { colors, initialize: initTheme }          = useThemeStore()
+  const navRef = useRef(null)
 
   useEffect(() => {
     initialize()
@@ -127,6 +138,23 @@ export default function RootNavigator() {
   useEffect(() => {
     if (isAuthenticated) requestLocation()
   }, [isAuthenticated])
+
+  // Deep link: after auth resolves, navigate to the shared event
+  useEffect(() => {
+    if (isLoading) return
+    const eventId = getEventIdFromUrl()
+    if (!eventId || !navRef.current) return
+
+    const timer = setTimeout(() => {
+      navRef.current.navigate('EventDetail', { eventId })
+      // Remove the ?event= from the URL so refresh doesn't re-trigger
+      if (Platform.OS === 'web') {
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }, 600)
+
+    return () => clearTimeout(timer)
+  }, [isLoading])
 
   if (isLoading) {
     return (
@@ -149,13 +177,13 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} ref={navRef}>
       {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   )
 }
 
 const styles = StyleSheet.create({
-  splash: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  splash:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
   splashLogo: { fontSize: 40, fontWeight: '900', letterSpacing: -1 },
 })
