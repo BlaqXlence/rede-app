@@ -1,26 +1,23 @@
 /**
  * EventDetailScreen.js
- * Full event detail with:
- * - WhatsApp share
- * - Comments section
- * - Reviews section
- * - Organizer profile tap
- * - Edit/Delete for creator
+ * Full event detail — back arrow, proper share, comments, reviews, organizer tap
  */
 import React from 'react'
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
-  StyleSheet, Share, Alert, Linking, Platform,
+  StyleSheet, Alert, Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore    from '../../store/themeStore'
 import useEventsStore   from '../../store/eventsStore'
 import useAuthStore     from '../../store/authStore'
 import Avatar           from '../../components/common/Avatar'
+import BackButton       from '../../components/common/BackButton'
+import ShareButton      from '../../components/common/ShareButton'
 import ReviewSection    from '../../components/events/ReviewSection'
 import CommentSection   from '../../components/events/CommentSection'
 import { formatDateRange, formatUGX, formatAttendees, timeFromNow } from '../../utils/formatters'
-import { EVENT_CATEGORIES, APP_URL } from '../../constants/config'
+import { EVENT_CATEGORIES } from '../../constants/config'
 import { eventsApi } from '../../services/api'
 
 export default function EventDetailScreen({ navigation, route }) {
@@ -40,10 +37,10 @@ export default function EventDetailScreen({ navigation, route }) {
 
   if (!event) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-        <TouchableOpacity style={{ padding: 20 }} onPress={() => navigation.goBack()}>
-          <Text style={{ color: colors.primary, fontSize: 15, fontWeight: '600' }}>← Back</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <BackButton onPress={() => navigation.goBack()} />
+        </View>
         <View style={styles.center}>
           <Text style={{ fontSize: 40 }}>🔍</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 16, marginTop: 12 }}>Event not found</Text>
@@ -54,14 +51,10 @@ export default function EventDetailScreen({ navigation, route }) {
 
   function handleJoin() {
     if (!user) {
-      Alert.alert(
-        'Sign in required',
-        'You need to sign in to join events.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => navigation.navigate('Phone') },
-        ]
-      )
+      Alert.alert('Sign in required', 'You need to sign in to join events.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => navigation.navigate('Phone') },
+      ])
       return
     }
     if (attending) {
@@ -73,40 +66,6 @@ export default function EventDetailScreen({ navigation, route }) {
       joinEvent(event.id)
       Alert.alert("You're in! 🎉", `See you at ${event.title}`)
     }
-  }
-
-  // WhatsApp share — opens WhatsApp directly with pre-written message
-  async function handleWhatsAppShare() {
-    const link    = `${APP_URL}?event=${event.id}`
-    const message = `🎉 *${event.title}*\n📅 ${formatDateRange(event.startTime, event.endTime)}\n📍 ${event.location?.venueName || event.location?.name}\n💰 ${formatUGX(event.entryFee)}\n\nFound on REDE 👉 ${link}`
-    const encoded = encodeURIComponent(message)
-    const waUrl   = `whatsapp://send?text=${encoded}`
-    const webUrl  = `https://wa.me/?text=${encoded}`
-
-    try {
-      const canOpen = await Linking.canOpenURL(waUrl)
-      if (canOpen) {
-        await Linking.openURL(waUrl)
-      } else {
-        // WhatsApp not installed — open web WhatsApp
-        await Linking.openURL(webUrl)
-      }
-    } catch {
-      // Fallback to native share
-      await Share.share({ message, title: event.title })
-    }
-  }
-
-  // Regular share (copy link)
-  async function handleShare() {
-    const link = `${APP_URL}?event=${event.id}`
-    try {
-      await Share.share({
-        message: `${event.title}\n${link}`,
-        url:     link,
-        title:   event.title,
-      })
-    } catch {}
   }
 
   function openMaps() {
@@ -138,26 +97,24 @@ export default function EventDetailScreen({ navigation, route }) {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Cover image */}
+
+        {/* Cover image with back + share buttons */}
         <View style={styles.coverWrap}>
           <Image source={{ uri: event.coverImage }} style={styles.cover} resizeMode="cover" />
 
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.btnTxt}>←</Text>
-          </TouchableOpacity>
-
-          {/* WhatsApp share — green */}
+          {/* Back arrow — always visible */}
           <TouchableOpacity
-            style={[styles.waBtn, { backgroundColor: '#25D366' }]}
-            onPress={handleWhatsAppShare}
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={styles.btnTxt}>W</Text>
+            <Text style={styles.overlayBtnTxt}>←</Text>
           </TouchableOpacity>
 
-          {/* Regular share */}
-          <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
-            <Text style={styles.btnTxt}>↗</Text>
-          </TouchableOpacity>
+          {/* Share button — opens share sheet */}
+          <View style={styles.shareWrap}>
+            <ShareButton event={event} />
+          </View>
 
           {event.isNow && (
             <View style={[styles.liveBadge, { backgroundColor: colors.error }]}>
@@ -187,7 +144,7 @@ export default function EventDetailScreen({ navigation, route }) {
                 style={[styles.actionBtn, { backgroundColor: colors.primary }]}
                 onPress={() => navigation.navigate('EditEvent', { event })}
               >
-                <Text style={styles.actionBtnTxt}>Edit</Text>
+                <Text style={styles.actionBtnTxt}>Edit Event</Text>
               </TouchableOpacity>
               {canDelete && (
                 <TouchableOpacity
@@ -220,7 +177,7 @@ export default function EventDetailScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Details */}
+          {/* Details card */}
           <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
             <Row icon="📅" text={formatDateRange(event.startTime, event.endTime)} color={colors.textSecondary} />
             <Row icon="📍" color={colors.textSecondary}
@@ -248,7 +205,7 @@ export default function EventDetailScreen({ navigation, route }) {
             <Row icon="👥" text={formatAttendees(event.attendeeCount, event.maxAttendees)} color={colors.textSecondary} />
           </View>
 
-          {/* Organizer — tappable */}
+          {/* Organizer — tappable to see their profile */}
           <TouchableOpacity
             style={[styles.organizer, { backgroundColor: colors.surface }]}
             onPress={() => navigation.navigate('Organizer', { organizerId: event.organizer?.id })}
@@ -261,11 +218,11 @@ export default function EventDetailScreen({ navigation, route }) {
                 {event.organizer?.name}{event.organizer?.verified ? ' ✓' : ''}
               </Text>
             </View>
-            <Text style={{ color: colors.textHint, fontSize: 18 }}>›</Text>
+            <Text style={{ color: colors.textHint, fontSize: 20 }}>›</Text>
           </TouchableOpacity>
 
           {/* Description */}
-          <Text style={[styles.descTitle, { color: colors.textPrimary }]}>About</Text>
+          <Text style={[styles.descTitle, { color: colors.textPrimary }]}>About this event</Text>
           <Text style={[styles.desc, { color: colors.textSecondary }]}>{event.description}</Text>
 
           {/* Comments */}
@@ -280,7 +237,7 @@ export default function EventDetailScreen({ navigation, route }) {
       {!isOrganizer && (
         <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <View>
-            <Text style={[styles.footerLabel, { color: colors.textHint }]}>Entry</Text>
+            <Text style={[styles.footerLabel, { color: colors.textHint }]}>Entry fee</Text>
             <Text style={[styles.footerPrice, { color: colors.primary }]}>{formatUGX(event.entryFee)}</Text>
           </View>
           <TouchableOpacity
@@ -321,17 +278,26 @@ function Row({ icon, text, color }) {
 }
 
 const styles = StyleSheet.create({
-  safe:    { flex: 1 },
-  center:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  safe:   { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+
+  // Cover
   coverWrap: { position: 'relative' },
-  cover:  { width: '100%', height: 260 },
-  backBtn: { position: 'absolute', top: 48, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  waBtn:   { position: 'absolute', top: 48, right: 60, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  shareBtn:{ position: 'absolute', top: 48, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  btnTxt: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  cover: { width: '100%', height: 260 },
+  backBtn: {
+    position: 'absolute', top: 48, left: 16,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  shareWrap: { position: 'absolute', top: 48, right: 16 },
+  overlayBtnTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
   liveBadge: { position: 'absolute', bottom: 12, left: 12, flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, gap: 5 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff' },
   liveTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
+
+  // Body
   body: { padding: 18 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   catBadge: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
@@ -355,6 +321,8 @@ const styles = StyleSheet.create({
   orgName: { fontSize: 15, fontWeight: '700', marginTop: 2 },
   descTitle: { fontSize: 15, fontWeight: '800', marginBottom: 8 },
   desc: { fontSize: 14, lineHeight: 22, marginBottom: 14 },
+
+  // Footer
   footer: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, paddingHorizontal: 18, paddingVertical: 12, gap: 14 },
   footerLabel: { fontSize: 11, textTransform: 'uppercase', fontWeight: '600' },
   footerPrice: { fontSize: 17, fontWeight: '800' },

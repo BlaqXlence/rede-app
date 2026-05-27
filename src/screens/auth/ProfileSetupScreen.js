@@ -1,9 +1,7 @@
 /**
  * ProfileSetupScreen.js
- * Two-step profile setup:
- *  Step 1 — Name + photo
- *  Step 2 — Interests (category preferences)
- * Interests are saved locally and used to boost relevant events in the feed.
+ * Step 1: Name + photo
+ * Step 2: Pick interests
  */
 import React, { useState } from 'react'
 import {
@@ -12,19 +10,21 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
-import colors from '../../constants/colors'
-import Input from '../../components/common/Input'
+import useThemeStore from '../../store/themeStore'
+import useAuthStore  from '../../store/authStore'
+import Input  from '../../components/common/Input'
 import Avatar from '../../components/common/Avatar'
-import useAuthStore from '../../store/authStore'
+import BackButton from '../../components/common/BackButton'
 import { validateEmail } from '../../utils/validators'
 import { EVENT_CATEGORIES } from '../../constants/config'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-// All categories except 'all' are valid interests
-const INTEREST_CATEGORIES = EVENT_CATEGORIES.filter(c => c.id !== 'all')
+const INTERESTS = EVENT_CATEGORIES.filter(c => c.id !== 'all')
 
-export default function ProfileSetupScreen() {
+export default function ProfileSetupScreen({ navigation }) {
+  const { colors }    = useThemeStore()
   const { user, saveProfile } = useAuthStore()
+
   const [step, setStep]           = useState(1)
   const [name, setName]           = useState('')
   const [email, setEmail]         = useState('')
@@ -37,16 +37,12 @@ export default function ProfileSetupScreen() {
     if (Platform.OS === 'web') return
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') return
-    const r = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true, aspect: [1, 1], quality: 0.7,
-    })
+    const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1,1], quality: 0.7 })
     if (!r.canceled) setAvatar(r.assets[0].uri)
   }
 
   function toggleInterest(id) {
-    setInterests(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    )
+    setInterests(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
   }
 
   function validateStep1() {
@@ -66,7 +62,6 @@ export default function ProfileSetupScreen() {
   async function handleFinish() {
     setLoading(true)
     try {
-      // Save interests to local storage for feed personalization
       await AsyncStorage.setItem('rede:interests', JSON.stringify(interests))
       await saveProfile({ name: name.trim(), email: email.trim() || null, avatar })
     } catch (e) {
@@ -77,34 +72,34 @@ export default function ProfileSetupScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        {/* Progress */}
-        <View style={styles.progress}>
-          {[1, 2].map(i => (
-            <View key={i} style={[styles.bar, i <= step && styles.barActive]} />
-          ))}
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+
+        {/* Header with back button */}
+        <View style={styles.headerRow}>
+          {step > 1
+            ? <BackButton onPress={() => setStep(1)} />
+            : <View style={{ width: 30 }} />
+          }
+          <View style={styles.progress}>
+            {[1,2].map(i => (
+              <View key={i} style={[styles.bar, { backgroundColor: i <= step ? colors.primary : colors.border }]} />
+            ))}
+          </View>
+          <View style={{ width: 30 }} />
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* ── Step 1: Profile info ─────────────────────────────────── */}
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
           {step === 1 && (
             <View>
-              <Text style={styles.heading}>Set up your profile</Text>
-              <Text style={styles.sub}>How people will see you on REDE</Text>
+              <Text style={[styles.heading, { color: colors.textPrimary }]}>Set up your profile</Text>
+              <Text style={[styles.sub, { color: colors.textSecondary }]}>How people will see you</Text>
 
-              {/* Avatar */}
               <TouchableOpacity style={styles.avatarWrap} onPress={pickImage}>
                 <Avatar uri={avatar} name={name || '?'} size={84} />
-                <View style={styles.avatarEdit}>
-                  <Text style={{ fontSize: 14 }}>📷</Text>
+                <View style={[styles.avatarEdit, { backgroundColor: colors.primary }]}>
+                  <Text style={{ fontSize: 12 }}>📷</Text>
                 </View>
               </TouchableOpacity>
 
@@ -114,15 +109,13 @@ export default function ProfileSetupScreen() {
                 onChangeText={v => { setName(v); if (errors.name) setErrors(e => ({ ...e, name: null })) }}
                 placeholder="Your name"
                 autoCapitalize="words"
-                autoComplete="name"
                 error={errors.name}
               />
 
-              {/* Phone display — verified */}
-              <View style={styles.phonePill}>
-                <Text style={styles.phonePillLabel}>PHONE</Text>
-                <Text style={styles.phonePillValue}>{user?.phone}</Text>
-                <Text style={styles.verified}>✓ Verified</Text>
+              <View style={[styles.phonePill, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.phonePillLabel, { color: colors.primary }]}>PHONE</Text>
+                <Text style={[styles.phonePillValue, { color: colors.textPrimary }]}>{user?.phone}</Text>
+                <Text style={[styles.verified, { color: colors.success }]}>✓ Verified</Text>
               </View>
 
               <Input
@@ -131,45 +124,40 @@ export default function ProfileSetupScreen() {
                 onChangeText={v => { setEmail(v); if (errors.email) setErrors(e => ({ ...e, email: null })) }}
                 placeholder="your@email.com"
                 keyboardType="email-address"
-                autoComplete="email"
                 error={errors.email}
                 hint="For event receipts and reminders"
               />
 
               <TouchableOpacity
-                style={[styles.btn, !name.trim() && styles.btnDisabled]}
+                style={[styles.btn, { backgroundColor: colors.primary, opacity: !name.trim() ? 0.45 : 1 }]}
                 onPress={handleNext}
                 disabled={!name.trim()}
                 activeOpacity={0.85}
               >
-                <Text style={styles.btnText}>Continue →</Text>
+                <Text style={styles.btnTxt}>Continue →</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ── Step 2: Interests ────────────────────────────────────── */}
           {step === 2 && (
             <View>
-              <Text style={styles.heading}>What are you into?</Text>
-              <Text style={styles.sub}>
-                Pick your interests — we'll show you the events you'll love.
-                You can change this anytime.
+              <Text style={[styles.heading, { color: colors.textPrimary }]}>What are you into?</Text>
+              <Text style={[styles.sub, { color: colors.textSecondary }]}>
+                Pick your interests — we'll show you events you'll love.
               </Text>
 
-              <View style={styles.interestGrid}>
-                {INTEREST_CATEGORIES.map(cat => {
+              <View style={styles.chips}>
+                {INTERESTS.map(cat => {
                   const active = interests.includes(cat.id)
+                  const accent = colors.cat[cat.id] || colors.primary
                   return (
                     <TouchableOpacity
                       key={cat.id}
-                      style={[
-                        styles.interestChip,
-                        active && { backgroundColor: cat.accent, borderColor: cat.accent },
-                      ]}
+                      style={[styles.chip, { backgroundColor: active ? accent : colors.surface, borderColor: active ? accent : colors.border }]}
                       onPress={() => toggleInterest(cat.id)}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.interestLabel, active && styles.interestLabelActive]}>
+                      <Text style={[styles.chipTxt, { color: active ? '#fff' : colors.textSecondary }]}>
                         {cat.label}
                       </Text>
                     </TouchableOpacity>
@@ -177,25 +165,21 @@ export default function ProfileSetupScreen() {
                 })}
               </View>
 
-              <Text style={styles.selectionCount}>
-                {interests.length === 0
-                  ? 'Select at least one interest'
-                  : `${interests.length} selected`}
+              <Text style={[styles.selCount, { color: colors.textHint }]}>
+                {interests.length === 0 ? 'Select at least one' : `${interests.length} selected`}
               </Text>
 
               <TouchableOpacity
-                style={[styles.btn, loading && styles.btnDisabled]}
+                style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.5 : 1 }]}
                 onPress={handleFinish}
                 disabled={loading}
                 activeOpacity={0.85}
               >
-                <Text style={styles.btnText}>
-                  {loading ? 'Setting up...' : "Let's go 🎉"}
-                </Text>
+                <Text style={styles.btnTxt}>{loading ? 'Setting up...' : "Let's go 🎉"}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={handleFinish} style={styles.skipBtn}>
-                <Text style={styles.skipText}>Skip for now</Text>
+                <Text style={[styles.skipTxt, { color: colors.textHint }]}>Skip for now</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -206,83 +190,25 @@ export default function ProfileSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  progress: {
-    flexDirection: 'row', gap: 6,
-    paddingHorizontal: 24, paddingTop: 14, paddingBottom: 4,
-  },
-  bar: {
-    flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.border,
-  },
-  barActive: { backgroundColor: colors.primary },
+  safe: { flex: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 },
+  progress: { flex: 1, flexDirection: 'row', gap: 8, marginHorizontal: 16 },
+  bar: { flex: 1, height: 3, borderRadius: 2 },
   content: { padding: 24, paddingBottom: 40 },
-  heading: {
-    fontSize: 26, fontWeight: '800', color: colors.textPrimary,
-    marginBottom: 8, letterSpacing: -0.5,
-  },
-  sub: {
-    fontSize: 14, color: colors.textSecondary,
-    lineHeight: 20, marginBottom: 24,
-  },
-
-  // Avatar
-  avatarWrap: {
-    alignSelf: 'center', marginBottom: 24, position: 'relative',
-  },
-  avatarEdit: {
-    position: 'absolute', bottom: 0, right: 0,
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // Phone pill
-  phonePill: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.surface, borderRadius: 10,
-    padding: 12, marginBottom: 16, gap: 8,
-  },
-  phonePillLabel: {
-    fontSize: 10, fontWeight: '700', color: colors.primary,
-    textTransform: 'uppercase', letterSpacing: 0.5,
-  },
-  phonePillValue: {
-    flex: 1, fontSize: 14, fontWeight: '700', color: colors.textPrimary,
-  },
-  verified: { fontSize: 12, color: '#2E7D32', fontWeight: '600' },
-
-  // Interests grid — 2 per row
-  interestGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16,
-  },
-  interestChip: {
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  interestLabel: {
-    fontSize: 13, fontWeight: '600', color: colors.textSecondary,
-  },
-  interestLabelActive: { color: '#fff' },
-
-  selectionCount: {
-    fontSize: 13, color: colors.textHint,
-    textAlign: 'center', marginBottom: 20,
-  },
-
-  // Button
-  btn: {
-    backgroundColor: colors.primary, borderRadius: 12,
-    paddingVertical: 15, alignItems: 'center',
-  },
-  btnDisabled: { opacity: 0.45 },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  heading: { fontSize: 26, fontWeight: '800', marginBottom: 8, letterSpacing: -0.5 },
+  sub: { fontSize: 14, lineHeight: 20, marginBottom: 24 },
+  avatarWrap: { alignSelf: 'center', marginBottom: 24, position: 'relative' },
+  avatarEdit: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  phonePill: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, padding: 12, marginBottom: 16, gap: 8 },
+  phonePillLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  phonePillValue: { flex: 1, fontSize: 14, fontWeight: '700' },
+  verified: { fontSize: 12, fontWeight: '600' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  chip: { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 9 },
+  chipTxt: { fontSize: 13, fontWeight: '600' },
+  selCount: { fontSize: 13, textAlign: 'center', marginBottom: 20 },
+  btn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+  btnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
   skipBtn: { alignItems: 'center', marginTop: 14 },
-  skipText: {
-    fontSize: 14, color: colors.textHint,
-    textDecorationLine: 'underline',
-  },
+  skipTxt: { fontSize: 14, textDecorationLine: 'underline' },
 })
