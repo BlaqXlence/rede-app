@@ -4,14 +4,33 @@
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#FF6600" />
     <title>REDE</title>
     <style>
-      input, textarea, select, button { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; padding: 0;
+        background-color: #111111;
+        display: flex;
+        justify-content: center;
+      }
+      html, body, #root { height: 100%; width: 100%; }
+      /* Instagram-style: max 500px on desktop, full width on phone */
+      #root {
+        max-width: 500px;
+        margin: 0 auto;
+        position: relative;
+      }
+      /* Remove ALL blue outlines */
+      input, textarea, select, button {
+        outline: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+      }
       input:focus, textarea:focus { outline: none !important; box-shadow: none !important; }
-      input[type="text"], input[type="number"], input[type="email"],
-      input[type="date"], input[type="time"], textarea { font-size: 16px !important; }
-      body { margin: 0; padding: 0; }
-      html, body, #root { height: 100%; }
+      /* Prevent iOS zoom on input focus — must be 16px */
+      input, textarea, select {
+        font-size: 16px !important;
+      }
     </style>
   </head>
   <body>

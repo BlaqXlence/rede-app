@@ -1,6 +1,6 @@
 /**
- * api.js — All API calls in one place
- * Token read as plain string (no JSON.parse)
+ * api.js — All API calls
+ * Token stored as plain string — no JSON.parse wrapper
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
@@ -43,6 +43,10 @@ export const eventsApi = {
   leave:     (id)       => request('POST',   `/events/${id}/leave`),
   mine:      ()         => request('GET',    '/events/mine'),
   attending: ()         => request('GET',    '/events/attending'),
+  // Get attendees list for an event
+  attendees: (id)       => request('GET',    `/events/${id}/attendees`),
+  // Check if current user is attending (server-side truth)
+  checkAttending: (id)  => request('GET',    `/events/${id}/attending-check`),
 }
 
 export const reviewsApi = {
@@ -54,14 +58,15 @@ export const commentsApi = {
   get:    (eventId)            => request('GET',    `/events/${eventId}/comments`),
   post:   (eventId, text)      => request('POST',   `/events/${eventId}/comments`, { text }),
   delete: (eventId, commentId) => request('DELETE', `/events/${eventId}/comments/${commentId}`),
+  // Server-side check if user can comment
+  canComment: (eventId)        => request('GET',    `/events/${eventId}/can-comment`),
 }
 
 export const searchApi = {
-  search: (q, params = {}) => request('GET', `/search?q=${encodeURIComponent(q)}&${new URLSearchParams(params)}`),
+  search: (q, params = {}) =>
+    request('GET', `/search?q=${encodeURIComponent(q)}&${new URLSearchParams(params)}`),
 }
 
 export const uploadApi = {
-  upload: async (base64Image) => {
-    return request('POST', '/upload', { image: base64Image })
-  },
+  upload: (base64Image) => request('POST', '/upload', { image: base64Image }),
 }

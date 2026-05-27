@@ -1,16 +1,13 @@
 /**
  * authStore.js
- * Token stored as plain string — no JSON.parse wrapping.
- * Phone is already in +256XXXXXXXXX format from PhoneScreen.
+ * Password-less return — if token expires, smoothly redirects to login
+ * instead of crashing
  */
 import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { authApi } from '../services/api'
 
-const KEYS = {
-  USER:  'rede:user',
-  TOKEN: 'rede:token',
-}
+const KEYS = { USER: 'rede:user', TOKEN: 'rede:token' }
 
 const useAuthStore = create((set, get) => ({
   user:            null,
@@ -23,15 +20,34 @@ const useAuthStore = create((set, get) => ({
         AsyncStorage.getItem(KEYS.USER),
         AsyncStorage.getItem(KEYS.TOKEN),
       ])
-      const user = userRaw ? JSON.parse(userRaw) : null
-      set({ user, isAuthenticated: !!(user && token), isLoading: false })
+      if (userRaw && token) {
+        const user = JSON.parse(userRaw)
+        set({ user, isAuthenticated: true, isLoading: false })
+
+        // Silently verify token is still valid
+        try {
+          const fresh = await authApi.getProfile()
+          if (fresh.user) {
+            await AsyncStorage.setItem(KEYS.USER, JSON.stringify(fresh.user))
+            set({ user: fresh.user })
+          }
+        } catch (err) {
+          // Token expired — log out smoothly, no crash
+          if (err.message?.includes('401') || err.message?.includes('token') || err.message?.includes('unauthorized')) {
+            console.log('Token expired, logging out gracefully')
+            await get().logout()
+          }
+          // Other errors (network) — keep user logged in with cached data
+        }
+      } else {
+        set({ isLoading: false })
+      }
     } catch {
       set({ isLoading: false })
     }
   },
 
   sendOtp: async (phone) => {
-    // phone is already in +256XXXXXXXXX format from PhoneScreen
     try {
       const data = await authApi.sendOtp(phone)
       if (data.dev_code) console.log(`\n📱 OTP: ${data.dev_code}\n`)
@@ -44,7 +60,6 @@ const useAuthStore = create((set, get) => ({
   verifyOtp: async (phone, code) => {
     try {
       const data = await authApi.verifyOtp(phone, code)
-      // Store token as plain string — no JSON.stringify
       await AsyncStorage.setItem(KEYS.TOKEN, data.token)
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(data.user))
       set({ user: data.user, isAuthenticated: true })
@@ -61,9 +76,8 @@ const useAuthStore = create((set, get) => ({
         email:      profileData.email || null,
         avatar_url: profileData.avatar || null,
       })
-      const user = data.user
-      await AsyncStorage.setItem(KEYS.USER, JSON.stringify(user))
-      set({ user, isAuthenticated: true })
+      await AsyncStorage.setItem(KEYS.USER, JSON.stringify(data.user))
+      set({ user: data.user, isAuthenticated: true })
     } catch (err) {
       // Save locally if API fails
       const user = { ...get().user, ...profileData }
@@ -85,7 +99,7 @@ const useAuthStore = create((set, get) => ({
 
   logout: async () => {
     await AsyncStorage.multiRemove(Object.values(KEYS))
-    set({ user: null, isAuthenticated: false })
+    set({ user: null, isAuthenticated: false, isLoading: false })
   },
 }))
 
