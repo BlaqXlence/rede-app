@@ -3,10 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator 
 import useThemeStore from '../../store/themeStore'
 
 export default function AddressSearch({ value, onSelect, error }) {
-  const { colors }      = useThemeStore()
-  const [query, setQuery]       = useState(value?.name || '')
-  const [results, setResults]   = useState([])
-  const [loading, setLoading]   = useState(false)
+  const { colors }  = useThemeStore()
+  const [query, setQuery]     = useState(value?.name || '')
+  const [results, setResults] = useState([])
+  const [loading, setLoading] = useState(false)
   const [showList, setShowList] = useState(false)
   const timer = useRef(null)
 
@@ -19,7 +19,7 @@ export default function AddressSearch({ value, onSelect, error }) {
       setLoading(true)
       try {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&countrycodes=ug&format=json&limit=6&addressdetails=1`
-        const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'REDE-App/1.0' } })
+        const res  = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'REDE-App/1.0' } })
         const data = await res.json()
         setResults(data)
         setShowList(data.length > 0)
@@ -29,13 +29,11 @@ export default function AddressSearch({ value, onSelect, error }) {
   }, [])
 
   function pick(place) {
-    const addr = place.address || {}
-    const name = addr.amenity || addr.building || addr.road || place.display_name.split(',')[0]
+    const addr  = place.address || {}
+    const name  = addr.amenity || addr.building || addr.road || place.display_name.split(',')[0]
     const parts = [addr.road, addr.suburb || addr.neighbourhood, addr.city || addr.town || 'Kampala', 'Uganda'].filter(Boolean)
     onSelect({ name: name.trim(), address: parts.join(', '), lat: parseFloat(place.lat), lng: parseFloat(place.lon) })
-    setQuery(name.trim())
-    setShowList(false)
-    setResults([])
+    setQuery(name.trim()); setShowList(false); setResults([])
   }
 
   return (
@@ -77,6 +75,7 @@ export default function AddressSearch({ value, onSelect, error }) {
   )
 }
 
+// Layout only — no colors here
 const styles = StyleSheet.create({
   wrap:       { marginBottom: 16, zIndex: 99 },
   label:      { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },

@@ -140,19 +140,19 @@ export default function CreateEventScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View style={styles.headerRow}>
             {step > 1
               ? <TouchableOpacity onPress={() => setStep(s => s - 1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Text style={styles.backText}>← Back</Text>
+                  <Text style={[styles.backText, { color: colors.primary }]}>← Back</Text>
                 </TouchableOpacity>
               : <View style={{ width: 60 }} />
             }
-            <Text style={styles.headingText}>Create Event</Text>
-            <Text style={styles.stepText}>{step}/3</Text>
+            <Text style={[styles.headingText, { color: colors.textPrimary }]}>Create Event</Text>
+            <Text style={[styles.stepText, { color: colors.textHint }]}>{step}/3</Text>
           </View>
           <View style={styles.bars}>
             {[1,2,3].map(i => (
@@ -166,7 +166,7 @@ export default function CreateEventScreen({ navigation }) {
           {/* ─── Step 1: Title + Category ─── */}
           {step === 1 && (
             <View>
-              <Text style={styles.stepHeading}>What's the event?</Text>
+              <Text style={[styles.stepHeading, { color: colors.textPrimary }]}>What's the event?</Text>
               <Input
                 label="Event Title"
                 value={form.title}
@@ -175,8 +175,8 @@ export default function CreateEventScreen({ navigation }) {
                 autoCapitalize="sentences" maxLength={80}
                 error={errors.title} hint={`${form.title.length}/80`}
               />
-              <Text style={styles.sectionLabel}>Category</Text>
-              {errors.category ? <Text style={styles.errText}>{errors.category}</Text> : null}
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Category</Text>
+              {errors.category ? <Text style={[styles.errText, { color: colors.error }]}>{errors.category}</Text> : null}
               <View style={styles.chips}>
                 {CATS.map(cat => {
                   const active = form.category === cat.id
@@ -199,7 +199,7 @@ export default function CreateEventScreen({ navigation }) {
           {/* ─── Step 2: Date, Time, Location ─── */}
           {step === 2 && (
             <View>
-              <Text style={styles.stepHeading}>When & where?</Text>
+              <Text style={[styles.stepHeading, { color: colors.textPrimary }]}>When & where?</Text>
 
               {/* Date — full width, its own block */}
               <DatePicker label="Date" value={form.date} onChange={v => f('date', v)} error={errors.date} />
@@ -220,7 +220,7 @@ export default function CreateEventScreen({ navigation }) {
           {/* ─── Step 3: Description + Photo ─── */}
           {step === 3 && (
             <View>
-              <Text style={styles.stepHeading}>Tell people more</Text>
+              <Text style={[styles.stepHeading, { color: colors.textPrimary }]}>Tell people more</Text>
               <Input
                 label="Description"
                 value={form.description}
@@ -231,7 +231,7 @@ export default function CreateEventScreen({ navigation }) {
                 error={errors.description}
                 hint={`${form.description.length}/1000 · min 50 characters`}
               />
-              <Text style={styles.sectionLabel}>Cover Photo</Text>
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Cover Photo</Text>
               <PhotoUpload
                 uri={form.photoUri}
                 onSelect={(uri, file) => { f('photoUri', uri); f('photoFile', file) }}
@@ -242,18 +242,18 @@ export default function CreateEventScreen({ navigation }) {
                 value={form.maxAttendees} onChangeText={v => f('maxAttendees', v)}
                 placeholder="Leave blank for unlimited" keyboardType="number-pad"
               />
-              <View style={styles.feeBox}>
-                <Text style={styles.feeTitle}>Entry Fee</Text>
-                <Text style={styles.feeValue}>Free during beta</Text>
-                <Text style={styles.feeNote}>Paid events coming with MTN MoMo integration</Text>
+              <View style={[styles.feeBox, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.feeTitle, { color: colors.textHint }]}>Entry Fee</Text>
+                <Text style={[styles.feeValue, { color: colors.textSecondary }]}>Free during beta</Text>
+                <Text style={[styles.feeNote, { color: colors.textHint }]}>Paid events coming with MTN MoMo integration</Text>
               </View>
             </View>
           )}
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           {step < 3
-            ? <TouchableOpacity style={styles.btn} onPress={handleNext} activeOpacity={0.85}>
+            ? <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary }]} onPress={handleNext} activeOpacity={0.85}>
                 <Text style={styles.btnText}>Continue →</Text>
               </TouchableOpacity>
             : <TouchableOpacity style={[styles.btn, posting && { opacity: 0.5 }]} onPress={handlePost} disabled={posting} activeOpacity={0.85}>
@@ -266,36 +266,28 @@ export default function CreateEventScreen({ navigation }) {
   )
 }
 
+// Only layout values — colors are applied inline in JSX
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  header: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 12,
-  },
-  backText: { fontSize: 14, color: colors.primary, fontWeight: '600', minWidth: 60 },
-  headingText: { fontSize: 17, fontWeight: '800', color: colors.textPrimary },
-  stepText: { fontSize: 13, color: colors.textHint, fontWeight: '600', minWidth: 60, textAlign: 'right' },
-  bars: { flexDirection: 'row', gap: 6 },
-  bar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.border },
-  barOn: { backgroundColor: 'rgba(124,58,237,0.35)' },
-  barCurr: { backgroundColor: colors.primary },
-  body: { padding: 20, paddingBottom: 16 },
-  stepHeading: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 20 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  errText: { fontSize: 12, color: colors.error, marginBottom: 6 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 8 },
-  chipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  feeBox: { backgroundColor: colors.surface, borderRadius: 10, padding: 14 },
-  feeTitle: { fontSize: 11, fontWeight: '700', color: colors.textHint, textTransform: 'uppercase', letterSpacing: 0.5 },
-  feeValue: { fontSize: 15, fontWeight: '700', color: colors.textSecondary, marginTop: 4 },
-  feeNote: { fontSize: 12, color: colors.textHint, marginTop: 3 },
-  footer: { padding: 16, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
-  btn: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  safe:         { flex: 1 },
+  header:       { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, borderBottomWidth: 1 },
+  headerRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  backText:     { fontSize: 14, fontWeight: '600', minWidth: 60 },
+  headingText:  { fontSize: 17, fontWeight: '800' },
+  stepText:     { fontSize: 13, fontWeight: '600', minWidth: 60, textAlign: 'right' },
+  bars:         { flexDirection: 'row', gap: 6 },
+  bar:          { flex: 1, height: 3, borderRadius: 2 },
+  body:         { padding: 20, paddingBottom: 16 },
+  stepHeading:  { fontSize: 20, fontWeight: '800', marginBottom: 20 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  errText:      { fontSize: 12, marginBottom: 6 },
+  chips:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:         { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 8 },
+  chipText:     { fontSize: 13, fontWeight: '600' },
+  feeBox:       { borderRadius: 10, padding: 14 },
+  feeTitle:     { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  feeValue:     { fontSize: 15, fontWeight: '700', marginTop: 4 },
+  feeNote:      { fontSize: 12, marginTop: 3 },
+  footer:       { padding: 16, borderTopWidth: 1 },
+  btn:          { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+  btnText:      { color: '#fff', fontSize: 15, fontWeight: '700' },
 })
