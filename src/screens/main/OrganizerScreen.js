@@ -1,22 +1,25 @@
 /**
  * OrganizerScreen.js
- * - Back arrow goes back to previous screen correctly
- * - Bottom nav always visible
- * - Proper camelCase data from API
- * - Verified badge logic: 3+ events with reviews
+ * No static header — avatar and name IS the header.
+ * Past and upcoming events clearly separated.
  */
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
+import {
+  View, Text, ScrollView, StyleSheet,
+  TouchableOpacity, ActivityIndicator, Dimensions,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore from '../../store/themeStore'
 import Avatar        from '../../components/common/Avatar'
 import EventCard     from '../../components/events/EventCard'
-import BottomNav     from '../../components/common/BottomNav'
 import { authApi }   from '../../services/api'
 
+const { width } = Dimensions.get('window')
+const MAX_W = Math.min(width, 500)
+
 export default function OrganizerScreen({ navigation, route }) {
-  const { organizerId } = route.params
-  const { colors }      = useThemeStore()
+  const { organizerId }  = route.params
+  const { colors }       = useThemeStore()
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
@@ -35,110 +38,109 @@ export default function OrganizerScreen({ navigation, route }) {
   }
 
   function openEvent(event) {
-    // Navigate to event — back from there comes back HERE not home
     navigation.push('EventDetail', { eventId: event.id, event })
   }
 
   const now      = new Date()
-  // Check both camelCase and snake_case since API responses may vary
   const upcoming = data?.events?.filter(e => new Date(e.endTime || e.end_time) > now) || []
   const past     = data?.events?.filter(e => new Date(e.endTime || e.end_time) <= now) || []
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={[styles.back, { color: colors.primary }]}>←</Text>
-        </TouchableOpacity>
-        <Text style={[styles.heading, { color: colors.textPrimary }]}>Organiser</Text>
-        <View style={{ width: 30 }} />
-      </View>
+      <View style={[styles.phone, { maxWidth: MAX_W }]}>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={{ color: colors.error }}>{error}</Text>
-        </View>
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {/* Profile card */}
-          <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
-            <Avatar uri={data.organizer.avatar} name={data.organizer.name} size={72} />
-            <View style={styles.profileInfo}>
-              <View style={styles.nameRow}>
-                <Text style={[styles.name, { color: colors.textPrimary }]}>{data.organizer.name}</Text>
-                {data.organizer.verified && (
-                  <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.badgeTxt}>✓ Verified</Text>
-                  </View>
+        {/* Minimal back arrow — no big header */}
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Text style={[styles.backTxt, { color: colors.primary }]}>←</Text>
+        </TouchableOpacity>
+
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : error ? (
+          <View style={styles.center}>
+            <Text style={{ color: colors.error }}>{error}</Text>
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+
+            {/* Profile — avatar is the visual header */}
+            <View style={styles.profileTop}>
+              <Avatar uri={data.organizer.avatar} name={data.organizer.name} size={80} />
+              <View style={styles.profileRight}>
+                <View style={styles.nameRow}>
+                  <Text style={[styles.name, { color: colors.textPrimary }]}>
+                    {data.organizer.name}
+                  </Text>
+                  {data.organizer.verified && (
+                    <View style={[styles.verBadge, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.verTxt}>✓</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.since, { color: colors.textHint }]}>
+                  Organiser since {new Date(data.organizer.joinedAt).getFullYear()}
+                </Text>
+                {!data.organizer.verified && (
+                  <Text style={[styles.verNote, { color: colors.textHint }]}>
+                    {data.totalEvents >= 3
+                      ? 'Verification pending'
+                      : `${3 - data.totalEvents} more events to get verified`}
+                  </Text>
                 )}
               </View>
-              <Text style={[styles.joinDate, { color: colors.textHint }]}>
-                Organiser since {new Date(data.organizer.joinedAt).getFullYear()}
-              </Text>
+            </View>
 
-              {/* Verification info */}
-              {!data.organizer.verified && (
-                <Text style={[styles.verifyNote, { color: colors.textHint }]}>
-                  {data.totalEvents >= 3
-                    ? 'Eligible for verification — pending review'
-                    : `${3 - data.totalEvents} more event${3 - data.totalEvents > 1 ? 's' : ''} needed to get verified`}
+            {/* Stats */}
+            <View style={[styles.stats, { backgroundColor: colors.surface }]}>
+              <Stat label="Events"   value={data.totalEvents}                                     colors={colors} />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <Stat label="Rating"   value={data.avgRating ? `${data.avgRating} ★` : '—'}        colors={colors} />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <Stat label="Upcoming" value={upcoming.length}                                      colors={colors} />
+            </View>
+
+            {/* Upcoming events */}
+            {upcoming.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                  Upcoming
                 </Text>
-              )}
-            </View>
-          </View>
-
-          {/* Stats */}
-          <View style={[styles.statsRow, { backgroundColor: colors.surface }]}>
-            <Stat label="Events"   value={data.totalEvents}          colors={colors} />
-            <View style={[styles.statLine, { backgroundColor: colors.border }]} />
-            <Stat label="Avg Rating" value={data.avgRating ? `${data.avgRating} ★` : '—'} colors={colors} />
-            <View style={[styles.statLine, { backgroundColor: colors.border }]} />
-            <Stat label="Upcoming" value={upcoming.length}           colors={colors} />
-          </View>
-
-          {/* Upcoming */}
-          {upcoming.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Upcoming Events</Text>
-              <View style={styles.grid}>
-                {upcoming.map(e => (
-                  <EventCard key={e.id} event={e} onPress={openEvent} style={{ marginBottom: 10 }} />
-                ))}
+                <View style={styles.grid}>
+                  {upcoming.map(e => (
+                    <EventCard key={e.id} event={e} onPress={openEvent} style={{ marginBottom: 12 }} />
+                  ))}
+                </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {/* Past */}
-          {past.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Past Events</Text>
-              <View style={styles.grid}>
-                {past.slice(0, 6).map(e => (
-                  <EventCard key={e.id} event={e} onPress={openEvent} style={{ marginBottom: 10, opacity: 0.75 }} />
-                ))}
+            {/* Past events */}
+            {past.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Past</Text>
+                <View style={styles.grid}>
+                  {past.slice(0, 6).map(e => (
+                    <EventCard key={e.id} event={e} onPress={openEvent} style={{ marginBottom: 12, opacity: 0.7 }} />
+                  ))}
+                </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {data.totalEvents === 0 && (
-            <View style={styles.center}>
-              <Text style={{ color: colors.textHint, marginTop: 20 }}>No events yet</Text>
-            </View>
-          )}
+            {data.totalEvents === 0 && (
+              <View style={styles.center}>
+                <Text style={{ color: colors.textHint, marginTop: 32 }}>No events yet</Text>
+              </View>
+            )}
 
-          <View style={{ height: 10 }} />
-        </ScrollView>
-      )}
-
-      <BottomNav navigation={navigation} activeTab="" />
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        )}
+      </View>
     </SafeAreaView>
   )
 }
@@ -153,23 +155,26 @@ function Stat({ label, value, colors }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
-  back: { fontSize: 22, fontWeight: '700' },
-  heading: { fontSize: 17, fontWeight: '800' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16 },
-  profileCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderRadius: 16, padding: 16, marginBottom: 12 },
-  profileInfo: { flex: 1 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 },
-  name: { fontSize: 18, fontWeight: '800' },
-  badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  joinDate: { fontSize: 13 },
-  verifyNote: { fontSize: 12, marginTop: 4, fontStyle: 'italic' },
-  statsRow: { flexDirection: 'row', borderRadius: 14, padding: 14, marginBottom: 16, alignItems: 'center' },
-  statLine: { width: 1, height: 30 },
-  section: { marginBottom: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  safe:    { flex: 1, alignItems: 'center' },
+  phone:   { flex: 1, width: '100%' },
+  backBtn: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
+  backTxt: { fontSize: 22, fontWeight: '700' },
+  center:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { padding: 16, paddingTop: 8 },
+
+  profileTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
+  profileRight: { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' },
+  name:    { fontSize: 20, fontWeight: '800' },
+  verBadge: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  verTxt:   { color: '#fff', fontSize: 11, fontWeight: '700' },
+  since:    { fontSize: 13 },
+  verNote:  { fontSize: 12, marginTop: 3, fontStyle: 'italic' },
+
+  stats:   { flexDirection: 'row', borderRadius: 14, padding: 16, marginBottom: 20, alignItems: 'center' },
+  divider: { width: 1, height: 30 },
+
+  section:      { marginBottom: 8 },
+  sectionTitle: { fontSize: 17, fontWeight: '800', marginBottom: 12 },
+  grid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 })

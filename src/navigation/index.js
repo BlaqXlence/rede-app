@@ -1,8 +1,11 @@
 /**
  * navigation/index.js
  *
- * Deep linking: rede-app.netlify.app?event=EVENT_ID opens that event directly.
- * Reads window.location.search on web startup, then navigates after auth resolves.
+ * Bottom nav ONLY appears on the three main tabs (Home, Create, Profile).
+ * Stack screens (EventDetail, Search, Organizer etc) have their own
+ * back arrows — no bottom nav there. That is standard app behaviour.
+ *
+ * Deep linking: rede-app.netlify.app?event=ID opens the correct event.
  */
 import React, { useEffect, useRef } from 'react'
 import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native'
@@ -41,14 +44,16 @@ function HomeIcon({ color }) {
     </Svg>
   )
 }
+
 function PlusIcon({ color }) {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.8"/>
-      <Path d="M12 8v8M8 12h8" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1.8"/>
+      <Path d="M12 7v10M7 12h10" stroke={color} strokeWidth="2" strokeLinecap="round"/>
     </Svg>
   )
 }
+
 function UserIcon({ color }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -70,9 +75,9 @@ function MainTabs() {
           backgroundColor: colors.surface,
           borderTopColor:  colors.border,
           borderTopWidth:  1,
-          height:          Platform.OS === 'ios' ? 82 : 60,
-          paddingBottom:   Platform.OS === 'ios' ? 24 : 8,
-          paddingTop:      6,
+          height:          Platform.OS === 'ios' ? 84 : 62,
+          paddingBottom:   Platform.OS === 'ios' ? 26 : 10,
+          paddingTop:      8,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ color }) => {
@@ -89,6 +94,7 @@ function MainTabs() {
   )
 }
 
+// Stack screens don't have bottom nav — they have their own back arrows
 function MainNavigator() {
   return (
     <MainStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
@@ -113,14 +119,10 @@ function AuthNavigator() {
   )
 }
 
-// Reads ?event=ID from the browser URL on web
 function getEventIdFromUrl() {
   if (Platform.OS !== 'web') return null
-  try {
-    return new URLSearchParams(window.location.search).get('event') || null
-  } catch {
-    return null
-  }
+  try { return new URLSearchParams(window.location.search).get('event') || null }
+  catch { return null }
 }
 
 export default function RootNavigator() {
@@ -139,28 +141,23 @@ export default function RootNavigator() {
     if (isAuthenticated) requestLocation()
   }, [isAuthenticated])
 
-  // Deep link: after auth resolves, navigate to the shared event
+  // Deep link handler
   useEffect(() => {
     if (isLoading) return
     const eventId = getEventIdFromUrl()
     if (!eventId || !navRef.current) return
-
-    const timer = setTimeout(() => {
+    const t = setTimeout(() => {
       navRef.current.navigate('EventDetail', { eventId })
-      // Remove the ?event= from the URL so refresh doesn't re-trigger
-      if (Platform.OS === 'web') {
-        window.history.replaceState({}, '', window.location.pathname)
-      }
+      if (Platform.OS === 'web') window.history.replaceState({}, '', window.location.pathname)
     }, 600)
-
-    return () => clearTimeout(timer)
+    return () => clearTimeout(t)
   }, [isLoading])
 
   if (isLoading) {
     return (
       <View style={[styles.splash, { backgroundColor: colors.background }]}>
-        <Text style={[styles.splashLogo, { color: colors.primary }]}>REDE</Text>
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+        <Text style={[styles.logo, { color: colors.primary }]}>REDE</Text>
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 24 }} />
       </View>
     )
   }
@@ -184,6 +181,6 @@ export default function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
-  splash:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  splashLogo: { fontSize: 40, fontWeight: '900', letterSpacing: -1 },
+  splash: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  logo:   { fontSize: 42, fontWeight: '900', letterSpacing: -1 },
 })

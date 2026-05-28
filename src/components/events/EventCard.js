@@ -1,14 +1,21 @@
 /**
  * EventCard.js
  *
- * Card design matching the reference photo:
- * - Large tall image fills top
- * - Heart top-right — tapping saves to liked events (persisted)
- * - Bold title, venue, price below
- * - No heavy borders or shadows
+ * Matches the reference photo exactly:
+ * - Large photo fills top (tall, rounded top corners)
+ * - Heart icon top-right over image — saves to liked events
+ * - Date badge top-left over image
+ * - Bold black title below image, large and readable
+ * - Category dot + name in colour
+ * - Venue in grey
+ * - Price prominent at bottom
+ * - Rounded card, no visible border, subtle shadow only
  */
 import React from 'react'
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native'
+import {
+  View, Text, Image, TouchableOpacity,
+  StyleSheet, Dimensions,
+} from 'react-native'
 import useThemeStore  from '../../store/themeStore'
 import useEventsStore from '../../store/eventsStore'
 import { formatUGX, formatDateShort } from '../../utils/formatters'
@@ -17,11 +24,13 @@ import { EVENT_CATEGORIES } from '../../constants/config'
 const { width } = Dimensions.get('window')
 const MAX_W = Math.min(width, 500)
 
+// Grid: two columns with a 12px gap and 32px total side padding
 export const CARD_WIDTH_GRID  = (MAX_W - 32 - 12) / 2
-export const CARD_WIDTH_HORIZ = MAX_W * 0.72
+// Horizontal scroll: show ~1.8 cards so user knows more exist
+export const CARD_WIDTH_HORIZ = MAX_W * 0.68
 
 export default function EventCard({ event, onPress, horizontal = false, style }) {
-  const { colors }     = useThemeStore()
+  const { colors }              = useThemeStore()
   const { toggleLike, isLiked } = useEventsStore()
 
   const liked    = isLiked(event.id)
@@ -33,62 +42,81 @@ export default function EventCard({ event, onPress, horizontal = false, style })
   return (
     <TouchableOpacity
       onPress={() => onPress(event)}
-      activeOpacity={0.93}
-      style={[styles.card, { width: cardW, backgroundColor: colors.surface }, style]}
+      activeOpacity={0.92}
+      style={[
+        styles.card,
+        {
+          width:           cardW,
+          backgroundColor: colors.surface,
+          shadowColor:     colors.isDark ? '#000' : '#bbb',
+        },
+        style,
+      ]}
     >
-      {/* Image */}
-      <View style={styles.imgBox}>
+      {/* ── Photo ────────────────────────────────────────── */}
+      <View style={styles.imgWrap}>
         <Image
           source={{ uri: event.coverImage }}
-          style={[styles.img, { height: horizontal ? 180 : 150 }]}
+          style={[styles.img, { height: horizontal ? 190 : 155 }]}
           resizeMode="cover"
         />
 
-        {/* Date pill */}
-        <View style={styles.datePill}>
-          <Text style={styles.datePillTxt}>{formatDateShort(event.startTime)}</Text>
+        {/* Date badge — top left */}
+        <View style={styles.dateBadge}>
+          <Text style={styles.dateTxt}>{formatDateShort(event.startTime)}</Text>
         </View>
 
-        {/* Heart — persisted like */}
+        {/* Heart — top right, saves to liked */}
         <TouchableOpacity
           style={styles.heart}
           onPress={e => { e.stopPropagation?.(); toggleLike(event.id) }}
-          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
-          <Text style={{ fontSize: 18, color: liked ? '#EF4444' : 'rgba(255,255,255,0.9)' }}>
+          <Text style={[styles.heartIcon, { color: liked ? '#EF4444' : '#fff' }]}>
             {liked ? '♥' : '♡'}
           </Text>
         </TouchableOpacity>
 
+        {/* Live badge */}
         {event.isNow && (
-          <View style={[styles.livePill, { backgroundColor: colors.error }]}>
+          <View style={[styles.liveBadge, { backgroundColor: colors.error }]}>
             <View style={styles.liveDot} />
             <Text style={styles.liveTxt}>LIVE</Text>
           </View>
         )}
       </View>
 
-      {/* Info */}
+      {/* ── Info below image ─────────────────────────────── */}
       <View style={styles.info}>
+
+        {/* Category */}
         <View style={styles.catRow}>
           <View style={[styles.catDot, { backgroundColor: catColor }]} />
-          <Text style={[styles.catLabel, { color: catColor }]} numberOfLines={1}>{catLabel}</Text>
+          <Text style={[styles.catLabel, { color: catColor }]} numberOfLines={1}>
+            {catLabel.toUpperCase()}
+          </Text>
         </View>
 
+        {/* Title — bold and big like reference */}
         <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
           {event.title}
         </Text>
 
+        {/* Venue */}
         <Text style={[styles.venue, { color: colors.textSecondary }]} numberOfLines={1}>
-          {event.location?.venueName || event.location?.name}
+          {event.location?.venueName || event.location?.name || ''}
         </Text>
 
-        <View style={styles.priceRow}>
-          <Text style={[styles.price, { color: event.entryFee === 0 ? colors.success : colors.primary }]}>
+        {/* Price + going row */}
+        <View style={styles.bottomRow}>
+          <Text style={[
+            styles.price,
+            { color: event.entryFee === 0 ? colors.success : colors.primary }
+          ]}>
             {formatUGX(event.entryFee)}
           </Text>
           <Text style={[styles.going, { color: isFull ? colors.error : colors.textHint }]}>
-            {isFull ? 'Full' : `${event.attendeeCount} going`}
+            {isFull ? 'Full' : `${event.attendeeCount || 0} going`}
           </Text>
         </View>
       </View>
@@ -97,35 +125,59 @@ export default function EventCard({ event, onPress, horizontal = false, style })
 }
 
 const styles = StyleSheet.create({
-  card:    { borderRadius: 14, overflow: 'hidden' },
-  imgBox:  { position: 'relative' },
-  img:     { width: '100%' },
-  datePill: {
-    position: 'absolute', top: 9, left: 9,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
+  card: {
+    borderRadius:  14,
+    overflow:      'hidden',
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius:  8,
+    elevation:     3,
   },
-  datePillTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
+
+  // Image
+  imgWrap:  { position: 'relative' },
+  img:      { width: '100%' },
+
+  dateBadge: {
+    position:        'absolute', top: 10, left: 10,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    borderRadius:    6,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  dateTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
+
   heart: {
-    position: 'absolute', top: 9, right: 9,
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    position:        'absolute', top: 8, right: 8,
+    width:           32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.28)',
     alignItems: 'center', justifyContent: 'center',
   },
-  livePill: {
-    position: 'absolute', bottom: 9, right: 9,
+  heartIcon: { fontSize: 17 },
+
+  liveBadge: {
+    position:  'absolute', bottom: 8, right: 8,
     flexDirection: 'row', alignItems: 'center',
-    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, gap: 3,
+    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, gap: 4,
   },
   liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#fff' },
   liveTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
-  info:     { padding: 10 },
+
+  // Info section
+  info: { padding: 10, paddingBottom: 12 },
+
   catRow:   { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 },
   catDot:   { width: 6, height: 6, borderRadius: 3 },
-  catLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
-  title:    { fontSize: 15, fontWeight: '800', lineHeight: 20, marginBottom: 4 },
-  venue:    { fontSize: 12, marginBottom: 8 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  price:    { fontSize: 15, fontWeight: '900' },
-  going:    { fontSize: 11 },
+  catLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+
+  // Big readable title like reference
+  title:  { fontSize: 15, fontWeight: '800', lineHeight: 21, marginBottom: 4 },
+  venue:  { fontSize: 12, lineHeight: 16, marginBottom: 8 },
+
+  bottomRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+  },
+  price: { fontSize: 15, fontWeight: '900' },
+  going: { fontSize: 11 },
 })
