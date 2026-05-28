@@ -76,8 +76,10 @@ function MainTabs() {
           backgroundColor: colors.surface,
           borderTopColor:  colors.border,
           borderTopWidth:  1,
-          height:          Platform.OS === 'ios' ? 84 : 62,
-          paddingBottom:   Platform.OS === 'ios' ? 26 : 10,
+          // On web PWA saved to iPhone home screen, we need more bottom padding
+          // to push the tab bar up above the home indicator
+          height:          Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 72 : 62,
+          paddingBottom:   Platform.OS === 'ios' ? 26 : Platform.OS === 'web' ? 20 : 10,
           paddingTop:      8,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },

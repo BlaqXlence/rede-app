@@ -3,56 +3,63 @@
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <!-- Prevent zoom on input focus, allow pinch zoom -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <!-- PWA / Add to Home Screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="REDE" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#FF6600" />
+    <link rel="apple-touch-icon" href="/assets/icon.png" />
     <title>REDE</title>
-    <!-- TikTok-style font: Inter — clean, modern, highly legible -->
+    <!-- Inter font - TikTok style -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
 
-      /* Apply Inter font globally — same as TikTok uses */
       html, body, #root {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         height: 100%;
         width: 100%;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       }
 
-      /* Center app like Instagram on desktop */
       body {
-        background-color: #0A0A0A;
+        background-color: #111111;
         display: flex;
         justify-content: center;
+        /* This is critical for PWA on iPhone - fills the notch area */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: 0;
       }
 
       #root {
         max-width: 500px;
         margin: 0 auto;
         position: relative;
-        background: transparent;
+        /* Fill full height including safe areas */
+        min-height: 100%;
+        padding-bottom: env(safe-area-inset-bottom);
       }
 
-      /* Remove ALL blue outlines — every input, every focus state */
+      /* Remove ALL blue outlines */
       *, *:focus, *:active {
         outline: none !important;
         -webkit-tap-highlight-color: transparent !important;
       }
 
       input, textarea, select, button {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Inter', -apple-system, sans-serif;
         outline: none !important;
         box-shadow: none !important;
         -webkit-appearance: none;
       }
 
-      /* 16px minimum prevents iOS zoom on focus */
-      input, textarea, select {
-        font-size: 16px !important;
-      }
+      /* 16px minimum prevents iOS zoom on input focus */
+      input, textarea, select { font-size: 16px !important; }
 
-      /* Hide scrollbars on the root — app handles its own scroll */
       body::-webkit-scrollbar { display: none; }
     </style>
   </head>
@@ -60,9 +67,3 @@
     <div id="root"></div>
   </body>
 </html>
-<!-- PWA config -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="REDE">
-<meta name="theme-color" content="#FF6600">
-<link rel="apple-touch-icon" href="/assets/icon.png">

@@ -13,6 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { generateEventId } from '../utils/formatters'
 import { eventsApi } from '../services/api'
 
+const CACHE_KEY = 'rede:events:cache'
+
 const useEventsStore = create((set, get) => ({
   userLocation:     null,
   locationName:     'Kampala',
@@ -27,6 +29,19 @@ const useEventsStore = create((set, get) => ({
   likedEvents:      [],    // event IDs the user has liked (heart)
 
   requestLocation: async () => {
+    // Step 1 — load cached events instantly so screen fills in <100ms
+    try {
+      const cached = await AsyncStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const events = JSON.parse(cached)
+        if (events?.length > 0) {
+          set({ events, isLoadingEvents: false })
+          get()._buildFeed(DEFAULT_CITY.lat, DEFAULT_CITY.lng)
+        }
+      }
+    } catch {}
+
+    // Step 2 — get location and fetch fresh data in background
     try {
       const { status } = await ExpoLocation.requestForegroundPermissionsAsync()
       set({ locationPermission: status })
@@ -41,18 +56,21 @@ const useEventsStore = create((set, get) => ({
       const name = place?.district || place?.city || place?.region || 'Kampala'
       set({ userLocation: { lat: latitude, lng: longitude }, locationName: name })
       get()._buildFeed(latitude, longitude)
+      // Fetch fresh — runs after cache already shown
       await get()._fetchEvents(latitude, longitude)
     } catch {
       get()._buildFeed(DEFAULT_CITY.lat, DEFAULT_CITY.lng)
+      // Try fetch even without location
+      get()._fetchEvents(DEFAULT_CITY.lat, DEFAULT_CITY.lng).catch(() => {})
     }
   },
 
   _fetchEvents: async (lat, lng) => {
     set({ isLoadingEvents: true })
     try {
-      const data = await eventsApi.list({ lat, lng, radius: 100 })
+      const data = await eventsApi.list({ lat, lng, radius: 100, limit: 12 })
       if (data.events?.length > 0) {
-        // Sort: happening now first, then soonest upcoming first
+        // Sort: happening now first, then soonest upcoming, most recent after
         const now    = new Date()
         const sorted = [...data.events].sort((a, b) => {
           const aStart = new Date(a.startTime)
@@ -61,10 +79,12 @@ const useEventsStore = create((set, get) => ({
           const bLive  = bStart <= now && new Date(b.endTime) >= now
           if (aLive && !bLive) return -1
           if (!aLive && bLive) return 1
-          return aStart - bStart   // soonest first
+          return aStart - bStart
         })
         set({ events: sorted })
         get()._buildFeed(lat, lng)
+        // Save to cache so next open is instant
+        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(sorted)).catch(() => {})
       }
       // Also sync attending list from server
       try {
@@ -232,6 +252,28 @@ const useEventsStore = create((set, get) => ({
   },
 
   isLiked: (eventId) => get().likedEvents.includes(eventId),
+  // Load more events (pagination) — called when user scrolls near bottom
+  loadMore: async () => {
+    const { events, userLocation } = get()
+    const loc    = userLocation || { lat: 0.3476, lng: 32.5825 }
+    const offset = events.length
+    try {
+      const data = await require('../services/api').eventsApi.list({
+        lat: loc.lat, lng: loc.lng, radius: 100, limit: 10, offset,
+      })
+      if (data.events?.length > 0) {
+        // Merge without duplicates
+        const ids     = new Set(events.map(e => e.id))
+        const newOnes = data.events.filter(e => !ids.has(e.id))
+        if (newOnes.length > 0) {
+          const merged = [...events, ...newOnes]
+          set({ events: merged })
+          get()._buildFeed(loc.lat, loc.lng)
+        }
+      }
+    } catch {}
+  },
+
   setEventsLocal: (events) => set({ events }),
   isAttending:    (id) => get().attending.includes(id),
   getEventById:   (id) => get().events.find(e => e.id === id),

@@ -35,6 +35,7 @@ export const authApi = {
 
 export const eventsApi = {
   list:      (params)   => request('GET',    `/events?${new URLSearchParams(params)}`),
+  listMore:  (params)   => request('GET',    `/events?${new URLSearchParams(params)}`),  // same but different name for clarity
   getById:   (id)       => request('GET',    `/events/${id}`),
   create:    (data)     => request('POST',   '/events', data),
   update:    (id, data) => request('PUT',    `/events/${id}`, data),
