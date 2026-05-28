@@ -289,9 +289,9 @@ export default function EventDetailScreen({ navigation, route }) {
           </View>
         )}
       </View>
+
         {/* Share popup */}
         <ShareModal visible={shareModal} onClose={() => setShareModal(false)} event={event} />
-      </View>
     </SafeAreaView>
   )
 }
