@@ -1,214 +1,307 @@
 /**
  * ProfileSetupScreen.js
- * Step 1: Name + photo
- * Step 2: Pick interests
+ * 3 clean steps after OTP verification for NEW users only.
+ * Existing users skip this entirely.
+ *
+ * Step 1: First name + Last name + Nickname
+ * Step 2: Age
+ * Step 3: Interests (max 3)
+ *
+ * Design: minimal, no gradients, clean typography.
  */
 import React, { useState } from 'react'
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Alert,
+  View, Text, TouchableOpacity, StyleSheet,
+  Platform, Dimensions, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import * as ImagePicker from 'expo-image-picker'
 import useThemeStore from '../../store/themeStore'
 import useAuthStore  from '../../store/authStore'
-import Input  from '../../components/common/Input'
-import Avatar from '../../components/common/Avatar'
-import BackButton from '../../components/common/BackButton'
-import { validateEmail } from '../../utils/validators'
 import { EVENT_CATEGORIES } from '../../constants/config'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const INTERESTS = EVENT_CATEGORIES.filter(c => c.id !== 'all')
+const { width }   = Dimensions.get('window')
+const MAX_W       = Math.min(width, 500)
+const CATEGORIES  = EVENT_CATEGORIES.filter(c => c.id !== 'all')
+const MAX_INTERESTS = 3
+
+const AGES = ['16–17','18–21','22–25','26–30','31–35','36–40','41–50','50+']
 
 export default function ProfileSetupScreen({ navigation }) {
-  const { colors }    = useThemeStore()
+  const { colors }      = useThemeStore()
   const { user, saveProfile } = useAuthStore()
 
-  const [step, setStep]           = useState(1)
-  const [name, setName]           = useState('')
-  const [email, setEmail]         = useState('')
-  const [avatar, setAvatar]       = useState(null)
+  const [step,      setStep]      = useState(1)
+  const [firstName, setFirstName] = useState('')
+  const [lastName,  setLastName]  = useState('')
+  const [nickname,  setNickname]  = useState('')
+  const [age,       setAge]       = useState('')
   const [interests, setInterests] = useState([])
-  const [errors, setErrors]       = useState({})
-  const [loading, setLoading]     = useState(false)
-
-  async function pickImage() {
-    if (Platform.OS === 'web') return
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') return
-    const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1,1], quality: 0.7 })
-    if (!r.canceled) setAvatar(r.assets[0].uri)
-  }
+  const [saving,    setSaving]    = useState(false)
 
   function toggleInterest(id) {
-    setInterests(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+    setInterests(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id)
+      if (prev.length >= MAX_INTERESTS) return prev
+      return [...prev, id]
+    })
   }
 
-  function validateStep1() {
-    const errs = {}
-    if (!name.trim() || name.trim().length < 2) errs.name = 'Enter your name'
-    const ee = validateEmail(email)
-    if (ee) errs.email = ee
-    return errs
-  }
-
-  function handleNext() {
-    const errs = validateStep1()
-    if (Object.keys(errs).length) { setErrors(errs); return }
-    setStep(2)
-  }
-
-  async function handleFinish() {
-    setLoading(true)
+  async function finish() {
+    setSaving(true)
     try {
-      await AsyncStorage.setItem('rede:interests', JSON.stringify(interests))
-      await saveProfile({ name: name.trim(), email: email.trim() || null, avatar })
-    } catch (e) {
-      Alert.alert('Error', e.message)
-    } finally {
-      setLoading(false)
-    }
+      await saveProfile({
+        first_name: firstName.trim(),
+        last_name:  lastName.trim(),
+        nickname:   nickname.trim() || firstName.trim(),
+        name:       nickname.trim() || firstName.trim(),
+        age:        AGES.indexOf(age) + 16,  // rough midpoint
+        interests,
+      })
+      navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })
+    } catch (err) {
+      Alert.alert('Error', err.message)
+    } finally { setSaving(false) }
   }
+
+  const step1Valid = firstName.trim().length >= 2 && lastName.trim().length >= 1
+  const step2Valid = !!age
+  const step3Valid = interests.length >= 1
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+    <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top','bottom']}>
+      <View style={[s.phone, { maxWidth: MAX_W }]}>
 
-        {/* Header with back button */}
-        <View style={styles.headerRow}>
-          {step > 1
-            ? <BackButton onPress={() => setStep(1)} />
-            : <View style={{ width: 30 }} />
-          }
-          <View style={styles.progress}>
-            {[1,2].map(i => (
-              <View key={i} style={[styles.bar, { backgroundColor: i <= step ? colors.primary : colors.border }]} />
-            ))}
-          </View>
-          <View style={{ width: 30 }} />
+        {/* Progress dots */}
+        <View style={s.progress}>
+          {[1,2,3].map(i => (
+            <View
+              key={i}
+              style={[s.dot, {
+                backgroundColor: i <= step ? colors.primary : colors.border,
+                width: i === step ? 20 : 8,
+              }]}
+            />
+          ))}
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {/* ── Step 1: Name ─────────────────────────── */}
+        {step === 1 && (
+          <View style={s.stepWrap}>
+            <Text style={[s.heading, { color: colors.textPrimary }]}>What's your name?</Text>
+            <Text style={[s.sub, { color: colors.textSecondary }]}>
+              Your real name helps organisers and friends find you.
+            </Text>
 
-          {step === 1 && (
-            <View>
-              <Text style={[styles.heading, { color: colors.textPrimary }]}>Set up your profile</Text>
-              <Text style={[styles.sub, { color: colors.textSecondary }]}>How people will see you</Text>
+            <Text style={[s.label, { color: colors.textSecondary }]}>First Name</Text>
+            <WebInput
+              value={firstName}
+              onChange={setFirstName}
+              placeholder="e.g. Aisha"
+              autoCapitalize="words"
+              colors={colors}
+            />
 
-              <TouchableOpacity style={styles.avatarWrap} onPress={pickImage}>
-                <Avatar uri={avatar} name={name || '?'} size={84} />
-                <View style={[styles.avatarEdit, { backgroundColor: colors.primary }]}>
-                  <Text style={{ fontSize: 12 }}>📷</Text>
-                </View>
-              </TouchableOpacity>
+            <Text style={[s.label, { color: colors.textSecondary }]}>Last Name</Text>
+            <WebInput
+              value={lastName}
+              onChange={setLastName}
+              placeholder="e.g. Nakato"
+              autoCapitalize="words"
+              colors={colors}
+            />
 
-              <Input
-                label="Full Name"
-                value={name}
-                onChangeText={v => { setName(v); if (errors.name) setErrors(e => ({ ...e, name: null })) }}
-                placeholder="Your name"
-                autoCapitalize="words"
-                error={errors.name}
-              />
+            <Text style={[s.label, { color: colors.textSecondary }]}>Nickname (what people call you)</Text>
+            <WebInput
+              value={nickname}
+              onChange={setNickname}
+              placeholder={`e.g. Ace, ${firstName || 'Nak'}`}
+              autoCapitalize="none"
+              colors={colors}
+            />
+            <Text style={[s.hint, { color: colors.textHint }]}>
+              This is what shows publicly. Unique and fun.
+            </Text>
+          </View>
+        )}
 
-              <View style={[styles.phonePill, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.phonePillLabel, { color: colors.primary }]}>PHONE</Text>
-                <Text style={[styles.phonePillValue, { color: colors.textPrimary }]}>{user?.phone}</Text>
-                <Text style={[styles.verified, { color: colors.success }]}>✓ Verified</Text>
-              </View>
-
-              <Input
-                label="Email (optional)"
-                value={email}
-                onChangeText={v => { setEmail(v); if (errors.email) setErrors(e => ({ ...e, email: null })) }}
-                placeholder="your@email.com"
-                keyboardType="email-address"
-                error={errors.email}
-                hint="For event receipts and reminders"
-              />
-
-              <TouchableOpacity
-                style={[styles.btn, { backgroundColor: colors.primary, opacity: !name.trim() ? 0.45 : 1 }]}
-                onPress={handleNext}
-                disabled={!name.trim()}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.btnTxt}>Continue →</Text>
-              </TouchableOpacity>
+        {/* ── Step 2: Age ──────────────────────────── */}
+        {step === 2 && (
+          <View style={s.stepWrap}>
+            <Text style={[s.heading, { color: colors.textPrimary }]}>How old are you?</Text>
+            <Text style={[s.sub, { color: colors.textSecondary }]}>
+              Helps us show you age-appropriate events.
+            </Text>
+            <View style={s.ageGrid}>
+              {AGES.map(a => (
+                <TouchableOpacity
+                  key={a}
+                  style={[s.agePill, {
+                    backgroundColor: age === a ? colors.primary : colors.surface,
+                    borderColor:     age === a ? colors.primary : colors.border,
+                  }]}
+                  onPress={() => setAge(a)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[s.ageTxt, { color: age === a ? '#fff' : colors.textSecondary }]}>
+                    {a}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
+          </View>
+        )}
+
+        {/* ── Step 3: Interests ────────────────────── */}
+        {step === 3 && (
+          <View style={s.stepWrap}>
+            <Text style={[s.heading, { color: colors.textPrimary }]}>What are you into?</Text>
+            <Text style={[s.sub, { color: colors.textSecondary }]}>
+              Pick up to {MAX_INTERESTS}. We'll show these events first.
+            </Text>
+            <Text style={[s.counter, { color: interests.length === MAX_INTERESTS ? colors.primary : colors.textHint }]}>
+              {interests.length}/{MAX_INTERESTS} selected
+            </Text>
+            <View style={s.catGrid}>
+              {CATEGORIES.map(cat => {
+                const active = interests.includes(cat.id)
+                const accent = colors.cat[cat.id] || colors.primary
+                const full   = !active && interests.length >= MAX_INTERESTS
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[s.catChip, {
+                      backgroundColor: active ? accent : colors.surface,
+                      borderColor:     active ? accent : colors.border,
+                      opacity:         full ? 0.4 : 1,
+                    }]}
+                    onPress={() => toggleInterest(cat.id)}
+                    disabled={full}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[s.catTxt, { color: active ? '#fff' : colors.textSecondary }]}>
+                      {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Footer */}
+        <View style={s.footer}>
+          {step > 1 && (
+            <TouchableOpacity onPress={() => setStep(s => s - 1)} style={s.backBtn}>
+              <Text style={[s.backTxt, { color: colors.textSecondary }]}>← Back</Text>
+            </TouchableOpacity>
           )}
 
-          {step === 2 && (
-            <View>
-              <Text style={[styles.heading, { color: colors.textPrimary }]}>What are you into?</Text>
-              <Text style={[styles.sub, { color: colors.textSecondary }]}>
-                Pick your interests — we'll show you events you'll love.
-              </Text>
-
-              <View style={styles.chips}>
-                {INTERESTS.map(cat => {
-                  const active = interests.includes(cat.id)
-                  const accent = colors.cat[cat.id] || colors.primary
-                  return (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[styles.chip, { backgroundColor: active ? accent : colors.surface, borderColor: active ? accent : colors.border }]}
-                      onPress={() => toggleInterest(cat.id)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.chipTxt, { color: active ? '#fff' : colors.textSecondary }]}>
-                        {cat.label}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
-
-              <Text style={[styles.selCount, { color: colors.textHint }]}>
-                {interests.length === 0 ? 'Select at least one' : `${interests.length} selected`}
-              </Text>
-
-              <TouchableOpacity
-                style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.5 : 1 }]}
-                onPress={handleFinish}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.btnTxt}>{loading ? 'Setting up...' : "Let's go 🎉"}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={handleFinish} style={styles.skipBtn}>
-                <Text style={[styles.skipTxt, { color: colors.textHint }]}>Skip for now</Text>
-              </TouchableOpacity>
-            </View>
+          {step < 3 ? (
+            <TouchableOpacity
+              style={[s.nextBtn, {
+                backgroundColor: (step === 1 ? step1Valid : step2Valid) ? colors.primary : colors.border,
+                flex: step > 1 ? 1 : undefined,
+                marginLeft: step > 1 ? 12 : 0,
+              }]}
+              onPress={() => setStep(s => s + 1)}
+              disabled={!(step === 1 ? step1Valid : step2Valid)}
+              activeOpacity={0.87}
+            >
+              <Text style={s.nextTxt}>Continue →</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[s.nextBtn, {
+                backgroundColor: step3Valid && !saving ? colors.primary : colors.border,
+                flex: 1, marginLeft: 12,
+              }]}
+              onPress={finish}
+              disabled={!step3Valid || saving}
+              activeOpacity={0.87}
+            >
+              <Text style={s.nextTxt}>{saving ? 'Saving...' : 'Get Started 🚀'}</Text>
+            </TouchableOpacity>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+
+        {/* Skip — only for interests step */}
+        {step === 3 && (
+          <TouchableOpacity onPress={finish} style={s.skip}>
+            <Text style={[s.skipTxt, { color: colors.textHint }]}>Skip for now</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </SafeAreaView>
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 },
-  progress: { flex: 1, flexDirection: 'row', gap: 8, marginHorizontal: 16 },
-  bar: { flex: 1, height: 3, borderRadius: 2 },
-  content: { padding: 24, paddingBottom: 40 },
-  heading: { fontSize: 26, fontWeight: '800', marginBottom: 8, letterSpacing: -0.5 },
-  sub: { fontSize: 14, lineHeight: 20, marginBottom: 24 },
-  avatarWrap: { alignSelf: 'center', marginBottom: 24, position: 'relative' },
-  avatarEdit: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  phonePill: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, padding: 12, marginBottom: 16, gap: 8 },
-  phonePillLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  phonePillValue: { flex: 1, fontSize: 14, fontWeight: '700' },
-  verified: { fontSize: 12, fontWeight: '600' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  chip: { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 9 },
-  chipTxt: { fontSize: 13, fontWeight: '600' },
-  selCount: { fontSize: 13, textAlign: 'center', marginBottom: 20 },
-  btn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
-  btnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  skipBtn: { alignItems: 'center', marginTop: 14 },
-  skipTxt: { fontSize: 14, textDecorationLine: 'underline' },
+function WebInput({ value, onChange, placeholder, autoCapitalize, colors }) {
+  if (Platform.OS === 'web') {
+    return (
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoCapitalize={autoCapitalize}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          backgroundColor: colors.surface, color: colors.textPrimary,
+          border: `1.5px solid ${colors.border}`, borderRadius: 12,
+          padding: '14px 16px', fontSize: 16, fontFamily: 'inherit',
+          outline: 'none', display: 'block', marginBottom: 16,
+        }}
+      />
+    )
+  }
+  const { TextInput } = require('react-native')
+  return (
+    <TextInput
+      style={{
+        borderWidth: 1.5, borderRadius: 12,
+        paddingHorizontal: 16, paddingVertical: 14,
+        fontSize: 16, marginBottom: 16,
+        backgroundColor: colors.surface,
+        borderColor: colors.border,
+        color: colors.textPrimary,
+      }}
+      value={value}
+      onChangeText={onChange}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textHint}
+      autoCapitalize={autoCapitalize}
+      selectionColor={colors.primary}
+      underlineColorAndroid="transparent"
+    />
+  )
+}
+
+const s = StyleSheet.create({
+  safe:     { flex: 1, alignItems: 'center' },
+  phone:    { flex: 1, width: '100%', paddingHorizontal: 24 },
+
+  progress: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 20, paddingBottom: 32 },
+  dot:      { height: 8, borderRadius: 4 },
+
+  stepWrap: { flex: 1 },
+  heading:  { fontSize: 26, fontWeight: '900', letterSpacing: -0.5, marginBottom: 10 },
+  sub:      { fontSize: 15, lineHeight: 22, marginBottom: 28 },
+  label:    { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  hint:     { fontSize: 12, marginBottom: 16, marginTop: -10 },
+  counter:  { fontSize: 13, fontWeight: '700', marginBottom: 16 },
+
+  ageGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  agePill:  { borderRadius: 10, borderWidth: 1.5, paddingHorizontal: 20, paddingVertical: 12 },
+  ageTxt:   { fontSize: 14, fontWeight: '600' },
+
+  catGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  catChip:  { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, paddingVertical: 10 },
+  catTxt:   { fontSize: 13, fontWeight: '600' },
+
+  footer:   { flexDirection: 'row', alignItems: 'center', paddingBottom: 16, paddingTop: 20 },
+  backBtn:  { paddingVertical: 16, paddingRight: 8 },
+  backTxt:  { fontSize: 15, fontWeight: '600' },
+  nextBtn:  { borderRadius: 14, paddingVertical: 16, alignItems: 'center', paddingHorizontal: 32 },
+  nextTxt:  { color: '#fff', fontSize: 16, fontWeight: '800' },
+  skip:     { alignItems: 'center', paddingBottom: 8 },
+  skipTxt:  { fontSize: 14, textDecorationLine: 'underline' },
 })
