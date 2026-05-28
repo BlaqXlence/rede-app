@@ -3,8 +3,9 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, TouchableW
 import useThemeStore from '../../store/themeStore'
 import { UGANDA_CITIES } from '../../constants/config'
 
-export default function CitySelector({ visible, currentCity, onSelect, onClose }) {
+export default function CitySelector({ visible, currentCity, onSelect, onClose, cities }) {
   const { colors } = useThemeStore()
+  const cityList = cities || UGANDA_CITIES
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -14,7 +15,7 @@ export default function CitySelector({ visible, currentCity, onSelect, onClose }
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
         <Text style={[styles.heading, { color: colors.textPrimary, borderBottomColor: colors.border }]}>Choose City</Text>
         <ScrollView showsVerticalScrollIndicator={false}>
-          {UGANDA_CITIES.map(city => {
+          {cityList.map(city => {
             const active = currentCity?.id === city.id
             return (
               <TouchableOpacity

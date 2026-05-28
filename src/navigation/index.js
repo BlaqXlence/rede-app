@@ -89,7 +89,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home"    component={HomeScreen}        options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Create"  component={CreateEventScreen} options={{ tabBarLabel: 'Create' }} />
+      <Tab.Screen name="Create"  component={CreateEventScreen} options={{ tabBarLabel: 'Create', tabBarStyle: { display: 'none' } }} />
       <Tab.Screen name="Profile" component={ProfileScreen}     options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   )
