@@ -31,6 +31,7 @@ import CategoryEventsScreen from '../screens/main/CategoryEventsScreen'
 import EditEventScreen      from '../screens/main/EditEventScreen'
 import SearchScreen         from '../screens/main/SearchScreen'
 import OrganizerScreen      from '../screens/main/OrganizerScreen'
+import SettingsScreen       from '../screens/main/SettingsScreen'
 
 const AuthStack = createNativeStackNavigator()
 const MainStack = createNativeStackNavigator()
@@ -104,6 +105,7 @@ function MainNavigator() {
       <MainStack.Screen name="EditEvent"      component={EditEventScreen} />
       <MainStack.Screen name="Search"         component={SearchScreen} />
       <MainStack.Screen name="Organizer"      component={OrganizerScreen} />
+      <MainStack.Screen name="Settings"       component={SettingsScreen} />
     </MainStack.Navigator>
   )
 }
