@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>REDE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:      #0C0C0E;
+    --surface: #141416;
+    --card:    #1A1A1E;
+    --border:  #2A2A30;
+    --orange:  #FF6600;
+    --orange2: #FF8533;
+    --red:     #EF4444;
+    --green:   #22C55E;
+    --blue:    #3B82F6;
+    --yellow:  #F59E0B;
+    --text:    #FFFFFF;
+    --text2:   #8A8A9A;
+    --text3:   #55555F;
+    --mono:    'Space Mono', monospace;
+    --sans:    'DM Sans', sans-serif;
+    --radius:  10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Login ─────────────────────────────────────────── */
+  #login {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh;
+  }
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px;
+    width: 100%; max-width: 400px;
+    text-align: center;
+  }
+  .login-logo {
+    font-family: var(--mono);
+    font-size: 32px; font-weight: 700;
+    color: var(--orange);
+    letter-spacing: -1px;
+    margin-bottom: 6px;
+  }
+  .login-sub {
+    color: var(--text2); font-size: 13px;
+    margin-bottom: 32px;
+  }
+  .login-input {
+    width: 100%; background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text); font-family: var(--mono);
+    font-size: 14px; padding: 13px 16px;
+    margin-bottom: 12px; outline: none;
+    transition: border-color .15s;
+  }
+  .login-input:focus { border-color: var(--orange); }
+  .login-btn {
+    width: 100%; background: var(--orange);
+    color: #fff; font-family: var(--sans);
+    font-weight: 700; font-size: 14px;
+    border: none; border-radius: var(--radius);
+    padding: 13px; cursor: pointer;
+    transition: opacity .15s;
+  }
+  .login-btn:hover { opacity: .88; }
+  .login-err { color: var(--red); font-size: 13px; margin-top: 10px; }
+
+  /* ── Shell ─────────────────────────────────────────── */
+  #app { display: none; }
+
+  .shell {
+    display: flex; min-height: 100vh;
+  }
+
+  /* ── Sidebar ───────────────────────────────────────── */
+  .sidebar {
+    width: 220px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 20px 0;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar-logo {
+    font-family: var(--mono);
+    font-size: 20px; font-weight: 700;
+    color: var(--orange); letter-spacing: -0.5px;
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .sidebar-logo span { color: var(--text2); font-size: 11px; display: block; font-family: var(--sans); margin-top: 2px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px;
+    color: var(--text2); font-size: 13px; font-weight: 500;
+    cursor: pointer; border-radius: 0;
+    transition: all .12s;
+    border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--card); color: var(--text); }
+  .nav-item.active { background: var(--orange); color: #fff; }
+  .nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-count {
+    margin-left: auto;
+    background: var(--orange);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 10px;
+  }
+  .sidebar-section {
+    padding: 16px 20px 6px;
+    font-size: 10px; font-weight: 700;
+    color: var(--text3); letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .logout-btn {
+    width: 100%; background: transparent;
+    border: 1px solid var(--border); color: var(--text2);
+    border-radius: var(--radius); padding: 9px;
+    font-family: var(--sans); font-size: 13px;
+    cursor: pointer; transition: all .12s;
+  }
+  .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── Main ──────────────────────────────────────────── */
+  .main {
+    flex: 1; overflow-y: auto;
+    padding: 28px;
+    max-width: 1200px;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .page-title { font-size: 22px; font-weight: 700; }
+  .page-sub   { color: var(--text2); font-size: 13px; margin-top: 3px; }
+
+  /* ── Stats row ─────────────────────────────────────── */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .stat-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stat-num   { font-size: 28px; font-weight: 800; font-family: var(--mono); }
+  .stat-change { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .stat-change.up { color: var(--green); }
+
+  /* ── Tables ────────────────────────────────────────── */
+  .table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .table-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-title { font-weight: 700; font-size: 15px; }
+  table {
+    width: 100%; border-collapse: collapse;
+  }
+  th {
+    text-align: left; padding: 10px 16px;
+    font-size: 11px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ── Badges ────────────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 700;
+  }
+  .badge-green  { background: rgba(34,197,94,.15);  color: var(--green); }
+  .badge-red    { background: rgba(239,68,68,.15);   color: var(--red); }
+  .badge-orange { background: rgba(255,102,0,.15);   color: var(--orange); }
+  .badge-blue   { background: rgba(59,130,246,.15);  color: var(--blue); }
+  .badge-gray   { background: rgba(255,255,255,.08); color: var(--text2); }
+
+  /* ── Buttons ───────────────────────────────────────── */
+  .btn {
+    padding: 7px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none;
+    transition: opacity .12s;
+    font-family: var(--sans);
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary   { background: var(--orange); color: #fff; }
+  .btn-danger    { background: var(--red);    color: #fff; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-green     { background: var(--green);   color: #fff; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* ── Search/filter bar ─────────────────────────────── */
+  .toolbar {
+    display: flex; gap: 10px; margin-bottom: 16px;
+    align-items: center;
+  }
+  .search-input {
+    flex: 1; background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text); font-family: var(--sans);
+    font-size: 13px; padding: 9px 14px;
+    outline: none; transition: border-color .15s;
+  }
+  .search-input:focus { border-color: var(--orange); }
+
+  /* ── Modal ─────────────────────────────────────────── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px; width: 100%; max-width: 520px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block; font-size: 11px; font-weight: 700;
+    color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 7px;
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text); font-family: var(--sans);
+    font-size: 14px; padding: 11px 14px;
+    outline: none; transition: border-color .15s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--orange); }
+  .form-textarea { min-height: 100px; resize: vertical; }
+  .form-select option { background: var(--card); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+
+  /* ── Toast ─────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 18px;
+    font-size: 13px; font-weight: 500;
+    z-index: 9999; display: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  }
+  #toast.show { display: block; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error   { border-color: var(--red);   color: var(--red); }
+
+  /* ── Avatar ────────────────────────────────────────── */
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--orange); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ── Activity feed ─────────────────────────────────── */
+  .activity-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 5px;
+  }
+  .activity-text { font-size: 13px; line-height: 1.5; }
+  .activity-time { color: var(--text2); font-size: 11px; margin-top: 2px; }
+
+  /* ── Loading ───────────────────────────────────────── */
+  .loading {
+    text-align: center; padding: 40px;
+    color: var(--text2); font-size: 13px;
+  }
+
+  /* ── Empty ─────────────────────────────────────────── */
+  .empty {
+    text-align: center; padding: 48px;
+    color: var(--text2);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* ── User row ──────────────────────────────────────── */
+  .user-info { display: flex; align-items: center; gap: 10px; }
+  .user-name  { font-weight: 600; font-size: 13px; }
+  .user-phone { color: var(--text2); font-size: 11px; font-family: var(--mono); }
+
+  /* ── Event thumb ───────────────────────────────────── */
+  .event-thumb {
+    width: 44px; height: 34px; border-radius: 6px;
+    object-fit: cover; background: var(--border);
+    flex-shrink: 0;
+  }
+  .event-info { display: flex; align-items: center; gap: 10px; }
+  .event-title  { font-weight: 600; font-size: 13px; }
+  .event-meta   { color: var(--text2); font-size: 11px; margin-top: 1px; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .sidebar { width: 60px; }
+    .sidebar-logo span, .nav-item span, .sidebar-section, .sidebar-footer { display: none; }
+    .nav-item { justify-content: center; padding: 12px; }
+    .nav-icon { width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <div class="login-logo">REDE <span>Admin Panel</span></div>
+    <p class="login-sub">Restricted access — authorised personnel only</p>
+    <input id="adminToken" class="login-input" type="password" placeholder="Admin token" autocomplete="off"/>
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <div id="loginErr" class="login-err"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- APP -->
+<div id="app">
+  <div class="shell">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-logo">REDE <span>Admin Panel</span></div>
+
+      <div class="sidebar-section">Overview</div>
+      <button class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">📊</span><span>Dashboard</span>
+      </button>
+      <button class="nav-item" onclick="showPage('activity')">
+        <span class="nav-icon">⚡</span><span>Live Activity</span>
+      </button>
+
+      <div class="sidebar-section">Content</div>
+      <button class="nav-item" onclick="showPage('events')">
+        <span class="nav-icon">🎭</span><span>Events</span>
+        <span class="nav-count" id="eventsCount">—</span>
+      </button>
+      <button class="nav-item" onclick="showPage('comments')">
+        <span class="nav-icon">💬</span><span>Comments</span>
+      </button>
+
+      <div class="sidebar-section">Users</div>
+      <button class="nav-item" onclick="showPage('users')">
+        <span class="nav-icon">👥</span><span>All Users</span>
+        <span class="nav-count" id="usersCount">—</span>
+      </button>
+
+      <div class="sidebar-section">Tools</div>
+      <button class="nav-item" onclick="showPage('create-event')">
+        <span class="nav-icon">➕</span><span>Create Event</span>
+      </button>
+      <button class="nav-item" onclick="showPage('create-user')">
+        <span class="nav-icon">👤</span><span>Add User</span>
+      </button>
+
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-sub">REDE platform overview</div>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAll()">↻ Refresh</button>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-num" id="statUsers">—</div>
+            <div class="stat-change up" id="statUsersNew"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Events</div>
+            <div class="stat-num" id="statEvents">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Events</div>
+            <div class="stat-num" id="statActive">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Attendees Joined</div>
+            <div class="stat-num" id="statAttendees">—</div>
+          </div>
+        </div>
+
+        <!-- Recent events -->
+        <div class="table-wrap" style="margin-bottom:24px">
+          <div class="table-head">
+            <div class="table-title">Recent Events</div>
+            <button class="btn btn-secondary btn-sm" onclick="showPage('events')">View all</button>
+          </div>
+          <div id="dashEventsBody"><div class="loading">Loading...</div></div>
+        </div>
+
+        <!-- Recent users -->
+        <div class="table-wrap">
+          <div class="table-head">
+            <div class="table-title">Recent Users</div>
+            <button class="btn btn-secondary btn-sm" onclick="showPage('users')">View all</button>
+          </div>
+          <div id="dashUsersBody"><div class="loading">Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- EVENTS -->
+      <div id="page-events" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Events</div>
+            <div class="page-sub" id="eventsSubtitle">All events on the platform</div>
+          </div>
+          <button class="btn btn-primary" onclick="showPage('create-event')">+ Create Event</button>
+        </div>
+        <div class="toolbar">
+          <input class="search-input" placeholder="Search events by title..." id="eventSearch" oninput="filterEvents()"/>
+          <select class="search-input" style="flex:0;width:140px" id="eventCatFilter" onchange="filterEvents()">
+            <option value="">All categories</option>
+            <option>party</option><option>music</option><option>sports</option>
+            <option>dancing</option><option>food</option><option>games</option>
+            <option>outdoor</option><option>art</option><option>wellness</option>
+            <option>comedy</option><option>kids</option><option>fashion</option><option>tech</option>
+          </select>
+          <select class="search-input" style="flex:0;width:120px" id="eventStatusFilter" onchange="filterEvents()">
+            <option value="">All status</option>
+            <option value="active">Active</option>
+            <option value="past">Past</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <div id="eventsBody"><div class="loading">Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div id="page-users" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Users</div>
+            <div class="page-sub">Everyone signed up on REDE</div>
+          </div>
+          <button class="btn btn-primary" onclick="showPage('create-user')">+ Add User</button>
+        </div>
+        <div class="toolbar">
+          <input class="search-input" placeholder="Search by name or phone..." id="userSearch" oninput="filterUsers()"/>
+        </div>
+        <div class="table-wrap">
+          <div id="usersBody"><div class="loading">Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- COMMENTS -->
+      <div id="page-comments" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Comments</div>
+            <div class="page-sub">All comments across all events</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div id="commentsBody"><div class="loading">Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- ACTIVITY -->
+      <div id="page-activity" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Live Activity</div>
+            <div class="page-sub">Recent joins, posts, and sign-ups</div>
+          </div>
+          <button class="btn btn-secondary" onclick="loadActivity()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap" style="padding:20px" id="activityBody">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+
+      <!-- CREATE EVENT -->
+      <div id="page-create-event" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Create Event</div>
+            <div class="page-sub">Post a new event on behalf of any user</div>
+          </div>
+        </div>
+        <div class="table-wrap" style="padding:24px;max-width:600px">
+          <div class="form-group">
+            <label class="form-label">Title *</label>
+            <input id="ceTitle" class="form-input" placeholder="Event title"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select id="ceCategory" class="form-select">
+              <option value="">Select category</option>
+              <option>party</option><option>music</option><option>sports</option>
+              <option>dancing</option><option>food</option><option>games</option>
+              <option>outdoor</option><option>art</option><option>wellness</option>
+              <option>comedy</option><option>kids</option><option>fashion</option><option>tech</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Start Date & Time *</label>
+              <input id="ceStart" class="form-input" type="datetime-local"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Date & Time *</label>
+              <input id="ceEnd" class="form-input" type="datetime-local"/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Venue Name *</label>
+            <input id="ceVenue" class="form-input" placeholder="e.g. Tank Hill Garden"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Location Address</label>
+            <input id="ceAddress" class="form-input" placeholder="e.g. Muyenga, Kampala"/>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Latitude</label>
+              <input id="ceLat" class="form-input" placeholder="0.3476" type="number" step="0.0001"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitude</label>
+              <input id="ceLng" class="form-input" placeholder="32.5825" type="number" step="0.0001"/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description * (min 50 chars)</label>
+            <textarea id="ceDesc" class="form-textarea" placeholder="Describe the event..."></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Max Attendees (optional)</label>
+              <input id="ceMax" class="form-input" placeholder="Leave blank = unlimited" type="number" min="2"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cover Image URL (optional)</label>
+              <input id="ceCover" class="form-input" placeholder="https://..."/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Organiser (User ID or leave blank = post as admin)</label>
+            <input id="ceOrganiser" class="form-input" placeholder="User UUID — find in Users tab"/>
+          </div>
+          <button class="btn btn-primary" style="width:100%;padding:13px;font-size:14px" onclick="adminCreateEvent()">
+            🚀 Post Event
+          </button>
+        </div>
+      </div>
+
+      <!-- ADD USER -->
+      <div id="page-create-user" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Add User</div>
+            <div class="page-sub">Manually create an account for a phone number</div>
+          </div>
+        </div>
+        <div class="table-wrap" style="padding:24px;max-width:480px">
+          <div class="form-group">
+            <label class="form-label">Phone Number * (Uganda format: +256...)</label>
+            <input id="cuPhone" class="form-input" placeholder="+256771234567" style="font-family:var(--mono)"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Name (optional)</label>
+            <input id="cuName" class="form-input" placeholder="Display name"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email (optional)</label>
+            <input id="cuEmail" class="form-input" placeholder="user@email.com" type="email"/>
+          </div>
+          <div style="background:rgba(255,102,0,.08);border:1px solid rgba(255,102,0,.2);border-radius:var(--radius);padding:14px;margin-bottom:18px;font-size:13px;color:var(--text2);line-height:1.6">
+            This creates an account directly. The user will need to verify via OTP the first time they open the app.
+          </div>
+          <button class="btn btn-primary" style="width:100%;padding:13px;font-size:14px" onclick="adminCreateUser()">
+            Create Account
+          </button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- EDIT EVENT MODAL -->
+<div class="modal-overlay" id="editEventModal">
+  <div class="modal">
+    <div class="modal-title">Edit Event</div>
+    <input type="hidden" id="editEventId"/>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input id="editTitle" class="form-input"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea id="editDesc" class="form-textarea"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Max Attendees</label>
+      <input id="editMax" class="form-input" type="number" placeholder="Leave blank = unlimited"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Active</label>
+      <select id="editActive" class="form-select">
+        <option value="true">Active</option>
+        <option value="false">Deactivated</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('editEventModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditEvent()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT USER MODAL -->
+<div class="modal-overlay" id="editUserModal">
+  <div class="modal">
+    <div class="modal-title">Edit User</div>
+    <input type="hidden" id="editUserId"/>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input id="editUserName" class="form-input"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input id="editUserEmail" class="form-input" type="email"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Verified</label>
+      <select id="editUserVerified" class="form-select">
+        <option value="true">✓ Verified</option>
+        <option value="false">Not verified</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('editUserModal')">Cancel</button>
+      <button class="btn btn-green" onclick="verifyUserDirect()" style="margin-right:auto">✓ Verify Now</button>
+      <button class="btn btn-primary" onclick="saveEditUser()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://web-production-e695b.up.railway.app/api/v1'
+const ADMIN_PASSWORD = 'rede_admin_2026'  // Change this to your own password
+let TOKEN  = ''
+let allEvents  = []
+let allUsers   = []
+let allComments = []
+
+// ── Auth ─────────────────────────────────────────────────────
+function doLogin() {
+  const pw = document.getElementById('adminToken').value.trim()
+  if (pw !== ADMIN_PASSWORD) {
+    document.getElementById('loginErr').textContent = 'Incorrect password'
+    return
+  }
+  // Use stored token or get one from localStorage
+  TOKEN = localStorage.getItem('rede_admin_user_token') || ''
+  document.getElementById('login').style.display = 'none'
+  document.getElementById('app').style.display   = 'block'
+  loadAll()
+}
+
+function doLogout() {
+  document.getElementById('login').style.display = 'flex'
+  document.getElementById('app').style.display   = 'none'
+}
+
+document.getElementById('adminToken').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin()
+})
+
+// ── Navigation ───────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'))
+  document.getElementById('page-' + id).classList.add('active')
+  // Find and highlight nav item
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes("'" + id + "'")) n.classList.add('active')
+  })
+  if (id === 'events')    renderEvents()
+  if (id === 'users')     renderUsers()
+  if (id === 'comments')  loadComments()
+  if (id === 'activity')  loadActivity()
+}
+
+// ── API helpers ──────────────────────────────────────────────
+async function api(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' }
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN
+  const res = await fetch(API + path, {
+    method, headers,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.message || 'Request failed')
+  return data
+}
+
+// ── Load everything ──────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [evRes, usRes] = await Promise.all([
+      api('GET', '/events?limit=200'),
+      api('GET', '/admin/users').catch(() => ({ users: [] })),
+    ])
+    allEvents = evRes.events || []
+    allUsers  = usRes.users  || []
+
+    updateStats()
+    renderDashboard()
+    renderEvents()
+    renderUsers()
+
+    document.getElementById('eventsCount').textContent = allEvents.length
+    document.getElementById('usersCount').textContent  = allUsers.length
+  } catch(err) {
+    toast('Load error: ' + err.message, 'error')
+  }
+}
+
+function updateStats() {
+  const now    = new Date()
+  const active = allEvents.filter(e => new Date(e.endTime) > now && e.isActive !== false)
+  const joined = allEvents.reduce((s, e) => s + (e.attendeeCount || 0), 0)
+
+  document.getElementById('statUsers').textContent     = allUsers.length || '—'
+  document.getElementById('statEvents').textContent    = allEvents.length
+  document.getElementById('statActive').textContent    = active.length
+  document.getElementById('statAttendees').textContent = joined
+}
+
+// ── Dashboard ────────────────────────────────────────────────
+function renderDashboard() {
+  // Recent events
+  const recent = [...allEvents]
+    .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 6)
+
+  document.getElementById('dashEventsBody').innerHTML = recent.length ? `
+    <table>
+      <thead><tr>
+        <th>Event</th><th>Category</th><th>Start</th><th>Going</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody>${recent.map(e => eventRow(e, true)).join('')}</tbody>
+    </table>` : '<div class="empty"><div class="empty-icon">🎭</div>No events yet</div>'
+
+  // Recent users
+  const recentU = [...allUsers]
+    .sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0))
+    .slice(0, 5)
+
+  document.getElementById('dashUsersBody').innerHTML = recentU.length ? `
+    <table>
+      <thead><tr><th>User</th><th>Phone</th><th>Joined</th><th>Status</th><th></th></tr></thead>
+      <tbody>${recentU.map(u => userRow(u, true)).join('')}</tbody>
+    </table>` : '<div class="empty">No users yet</div>'
+}
+
+// ── Events ───────────────────────────────────────────────────
+function eventRow(e, compact=false) {
+  const now    = new Date()
+  const isLive = new Date(e.startTime) <= now && new Date(e.endTime) >= now
+  const isPast = new Date(e.endTime)   <  now
+  const statusBadge = isLive
+    ? '<span class="badge badge-green">LIVE</span>'
+    : isPast
+    ? '<span class="badge badge-gray">Past</span>'
+    : '<span class="badge badge-orange">Upcoming</span>'
+
+  const cover = e.coverImage?.startsWith('data:') ? null : e.coverImage
+
+  return `<tr>
+    <td>
+      <div class="event-info">
+        ${cover ? `<img src="${cover}" class="event-thumb" onerror="this.style.display='none'"/>` : '<div class="event-thumb" style="background:var(--border)"></div>'}
+        <div>
+          <div class="event-title">${esc(e.title)}</div>
+          <div class="event-meta">${esc(e.location?.name || e.location?.venueName || '—')}</div>
+        </div>
+      </div>
+    </td>
+    <td><span class="badge badge-blue">${e.category}</span></td>
+    <td style="white-space:nowrap;font-family:var(--mono);font-size:11px">${fmtDate(e.startTime)}</td>
+    <td>${e.attendeeCount || 0}${e.maxAttendees ? ' / ' + e.maxAttendees : ''}</td>
+    <td>${statusBadge}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-secondary btn-sm" onclick="openEditEvent('${e.id}')" style="margin-right:6px">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}','${esc(e.title)}')">Delete</button>
+    </td>
+  </tr>`
+}
+
+function renderEvents() {
+  const search = (document.getElementById('eventSearch')?.value || '').toLowerCase()
+  const cat    = document.getElementById('eventCatFilter')?.value || ''
+  const status = document.getElementById('eventStatusFilter')?.value || ''
+  const now    = new Date()
+
+  let list = allEvents.filter(e => {
+    if (search && !e.title.toLowerCase().includes(search)) return false
+    if (cat    && e.category !== cat) return false
+    if (status === 'active' && new Date(e.endTime) < now) return false
+    if (status === 'past'   && new Date(e.endTime) > now) return false
+    return true
+  }).sort((a,b) => new Date(a.startTime) - new Date(b.startTime))
+
+  document.getElementById('eventsSubtitle').textContent = `${list.length} events`
+  document.getElementById('eventsBody').innerHTML = list.length ? `
+    <table>
+      <thead><tr>
+        <th>Event</th><th>Category</th><th>Start</th><th>Going</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${list.map(e => eventRow(e)).join('')}</tbody>
+    </table>` : '<div class="empty"><div class="empty-icon">🔍</div>No events match</div>'
+}
+
+function filterEvents() { renderEvents() }
+
+async function deleteEvent(id, title) {
+  if (!confirm(`Delete "${title}"?\n\nThis is permanent and cannot be undone.`)) return
+  try {
+    await api('DELETE', '/events/' + id)
+    allEvents = allEvents.filter(e => e.id !== id)
+    renderEvents(); renderDashboard(); updateStats()
+    toast('Event deleted', 'success')
+  } catch(err) {
+    // Force delete via deactivation if it has attendees
+    toast('Cannot delete (has attendees) — deactivating instead', 'error')
+    try {
+      await api('PUT', '/events/' + id, { is_active: false })
+      const ev = allEvents.find(e => e.id === id)
+      if (ev) ev.isActive = false
+      renderEvents()
+      toast('Event deactivated', 'success')
+    } catch {}
+  }
+}
+
+function openEditEvent(id) {
+  const e = allEvents.find(e => e.id === id)
+  if (!e) return
+  document.getElementById('editEventId').value    = id
+  document.getElementById('editTitle').value      = e.title
+  document.getElementById('editDesc').value       = e.description
+  document.getElementById('editMax').value        = e.maxAttendees || ''
+  document.getElementById('editActive').value     = String(e.isActive !== false)
+  document.getElementById('editEventModal').classList.add('open')
+}
+
+async function saveEditEvent() {
+  const id = document.getElementById('editEventId').value
+  const body = {
+    title:        document.getElementById('editTitle').value.trim(),
+    description:  document.getElementById('editDesc').value.trim(),
+    max_attendees: document.getElementById('editMax').value ? parseInt(document.getElementById('editMax').value) : null,
+    is_active:    document.getElementById('editActive').value === 'true',
+  }
+  try {
+    const res = await api('PUT', '/events/' + id, body)
+    const idx = allEvents.findIndex(e => e.id === id)
+    if (idx >= 0) allEvents[idx] = { ...allEvents[idx], ...res.event }
+    closeModal('editEventModal'); renderEvents(); renderDashboard()
+    toast('Event updated', 'success')
+  } catch(err) { toast(err.message, 'error') }
+}
+
+// ── Users ────────────────────────────────────────────────────
+function userRow(u, compact=false) {
+  const initials = (u.name||u.phone||'?').charAt(0).toUpperCase()
+  return `<tr>
+    <td>
+      <div class="user-info">
+        <div class="avatar">
+          ${u.avatar ? `<img src="${u.avatar}" onerror="this.style.display='none'"/>` : ''}
+          ${initials}
+        </div>
+        <div>
+          <div class="user-name">${esc(u.name || 'No name')}</div>
+          <div class="user-phone">${esc(u.id)}</div>
+        </div>
+      </div>
+    </td>
+    <td style="font-family:var(--mono);font-size:12px">${esc(u.phone)}</td>
+    <td>${u.email ? esc(u.email) : '<span style="color:var(--text3)">—</span>'}</td>
+    <td>${u.verified ? '<span class="badge badge-green">✓ Verified</span>' : '<span class="badge badge-gray">Unverified</span>'}</td>
+    <td style="white-space:nowrap;font-family:var(--mono);font-size:11px">${fmtDate(u.createdAt)}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-secondary btn-sm" onclick="openEditUser('${u.id}')" style="margin-right:6px">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${esc(u.name||u.phone)}')">Delete</button>
+    </td>
+  </tr>`
+}
+
+function renderUsers() {
+  const search = (document.getElementById('userSearch')?.value || '').toLowerCase()
+  let list = allUsers.filter(u => {
+    if (!search) return true
+    return (u.name||'').toLowerCase().includes(search) ||
+           (u.phone||'').includes(search)
+  })
+  document.getElementById('usersBody').innerHTML = list.length ? `
+    <table>
+      <thead><tr><th>User</th><th>Phone</th><th>Email</th><th>Verified</th><th>Joined</th><th>Actions</th></tr></thead>
+      <tbody>${list.map(u => userRow(u)).join('')}</tbody>
+    </table>` : '<div class="empty"><div class="empty-icon">👥</div>No users found</div>'
+}
+
+function filterUsers() { renderUsers() }
+
+function openEditUser(id) {
+  const u = allUsers.find(u => u.id === id)
+  if (!u) return
+  document.getElementById('editUserId').value      = id
+  document.getElementById('editUserName').value    = u.name || ''
+  document.getElementById('editUserEmail').value   = u.email || ''
+  document.getElementById('editUserVerified').value = String(!!u.verified)
+  document.getElementById('editUserModal').classList.add('open')
+}
+
+async function saveEditUser() {
+  const id = document.getElementById('editUserId').value
+  const body = {
+    name:     document.getElementById('editUserName').value.trim() || null,
+    email:    document.getElementById('editUserEmail').value.trim() || null,
+    verified: document.getElementById('editUserVerified').value === 'true',
+  }
+  try {
+    // Use admin endpoint
+    await api('PUT', '/admin/users/' + id, body)
+    const u = allUsers.find(u => u.id === id)
+    if (u) Object.assign(u, body)
+    closeModal('editUserModal'); renderUsers(); renderDashboard()
+    toast('User updated', 'success')
+  } catch(err) { toast(err.message, 'error') }
+}
+
+function verifyUserDirect() {
+  document.getElementById('editUserVerified').value = 'true'
+  saveEditUser()
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Delete user "${name}"?\n\nThis deletes ALL their data permanently.`)) return
+  try {
+    await api('DELETE', '/admin/users/' + id)
+    allUsers = allUsers.filter(u => u.id !== id)
+    renderUsers(); renderDashboard(); updateStats()
+    toast('User deleted', 'success')
+  } catch(err) { toast(err.message, 'error') }
+}
+
+// ── Admin create event ────────────────────────────────────────
+async function adminCreateEvent() {
+  const title = document.getElementById('ceTitle').value.trim()
+  const cat   = document.getElementById('ceCategory').value
+  const start = document.getElementById('ceStart').value
+  const end   = document.getElementById('ceEnd').value
+  const venue = document.getElementById('ceVenue').value.trim()
+  const desc  = document.getElementById('ceDesc').value.trim()
+
+  if (!title || !cat || !start || !end || !venue || desc.length < 50) {
+    toast('Fill in all required fields. Description needs 50+ chars.', 'error'); return
+  }
+
+  const body = {
+    title, category: cat, description: desc,
+    start_time: new Date(start).toISOString(),
+    end_time:   new Date(end).toISOString(),
+    location_name:    venue,
+    location_address: document.getElementById('ceAddress').value.trim() || venue,
+    location_lat:     parseFloat(document.getElementById('ceLat').value) || 0.3476,
+    location_lng:     parseFloat(document.getElementById('ceLng').value) || 32.5825,
+    max_attendees:    document.getElementById('ceMax').value ? parseInt(document.getElementById('ceMax').value) : null,
+    cover_image:      document.getElementById('ceCover').value.trim() || null,
+    entry_fee: 0, tags: [],
+  }
+
+  const organiserId = document.getElementById('ceOrganiser').value.trim()
+  if (organiserId) body.organizer_id_override = organiserId
+
+  try {
+    const res = await api('POST', '/admin/events', body)
+    allEvents.unshift(res.event)
+    toast('Event created!', 'success')
+    // Clear form
+    ['ceTitle','ceCategory','ceStart','ceEnd','ceVenue','ceAddress','ceLat','ceLng','ceDesc','ceMax','ceCover','ceOrganiser']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+    updateStats()
+  } catch(err) { toast(err.message, 'error') }
+}
+
+// ── Admin create user ────────────────────────────────────────
+async function adminCreateUser() {
+  const phone = document.getElementById('cuPhone').value.trim()
+  if (!phone || !phone.startsWith('+256')) {
+    toast('Enter a valid Uganda phone number (+256...)', 'error'); return
+  }
+  try {
+    const res = await api('POST', '/admin/users', {
+      phone,
+      name:  document.getElementById('cuName').value.trim()  || null,
+      email: document.getElementById('cuEmail').value.trim() || null,
+    })
+    allUsers.unshift(res.user)
+    renderUsers(); updateStats()
+    toast('User created! They can now sign in with OTP.', 'success')
+    document.getElementById('cuPhone').value = ''
+    document.getElementById('cuName').value  = ''
+    document.getElementById('cuEmail').value = ''
+  } catch(err) { toast(err.message, 'error') }
+}
+
+// ── Comments ─────────────────────────────────────────────────
+async function loadComments() {
+  document.getElementById('commentsBody').innerHTML = '<div class="loading">Loading...</div>'
+  try {
+    // Load comments for all events
+    const items = []
+    const recent = allEvents.slice(0, 20)
+    for (const e of recent) {
+      try {
+        const res = await api('GET', '/events/' + e.id + '/comments')
+        res.comments.forEach(c => items.push({ ...c, eventTitle: e.title }))
+      } catch {}
+    }
+    items.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+    document.getElementById('commentsBody').innerHTML = items.length ? `
+      <table>
+        <thead><tr><th>Author</th><th>Comment</th><th>Event</th><th>Time</th><th></th></tr></thead>
+        <tbody>${items.map(c => `<tr>
+          <td><strong>${esc(c.authorName||'?')}</strong></td>
+          <td style="max-width:300px">${esc(c.text)}</td>
+          <td style="color:var(--text2)">${esc(c.eventTitle||'—')}</td>
+          <td style="font-family:var(--mono);font-size:11px">${fmtDate(c.createdAt)}</td>
+          <td>
+            <button class="btn btn-danger btn-sm" onclick="deleteComment('${c.eventId}','${c.id}',this)">Delete</button>
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>` : '<div class="empty"><div class="empty-icon">💬</div>No comments</div>'
+  } catch(err) {
+    document.getElementById('commentsBody').innerHTML = '<div class="loading" style="color:var(--red)">Error loading comments</div>'
+  }
+}
+
+async function deleteComment(eventId, commentId, btn) {
+  if (!confirm('Delete this comment?')) return
+  try {
+    await api('DELETE', '/events/' + eventId + '/comments/' + commentId)
+    btn.closest('tr').remove()
+    toast('Comment deleted', 'success')
+  } catch(err) { toast(err.message, 'error') }
+}
+
+// ── Activity ─────────────────────────────────────────────────
+async function loadActivity() {
+  document.getElementById('activityBody').innerHTML = '<div class="loading">Loading...</div>'
+  const items = []
+
+  // Recent events
+  allEvents
+    .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0,10)
+    .forEach(e => items.push({
+      icon: '🎭', color: 'var(--orange)',
+      text: `<strong>${esc(e.organizer?.name||'Someone')}</strong> created event <strong>${esc(e.title)}</strong>`,
+      time: e.createdAt,
+    }))
+
+  // Recent users
+  allUsers
+    .sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0))
+    .slice(0,8)
+    .forEach(u => items.push({
+      icon: '👤', color: 'var(--blue)',
+      text: `New user signed up: <strong>${esc(u.name||u.phone)}</strong>`,
+      time: u.createdAt,
+    }))
+
+  items.sort((a,b) => new Date(b.time||0) - new Date(a.time||0))
+
+  document.getElementById('activityBody').innerHTML = items.length
+    ? items.slice(0,25).map(item => `
+      <div class="activity-item">
+        <div class="activity-dot" style="background:${item.color}"></div>
+        <div>
+          <div class="activity-text">${item.text}</div>
+          <div class="activity-time">${fmtDate(item.time)}</div>
+        </div>
+      </div>`).join('')
+    : '<div class="empty">No recent activity</div>'
+}
+
+// ── Modals ───────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open')
+}
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open') })
+})
+
+// ── Toast ────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.className = 'show ' + type
+  setTimeout(() => t.className = '', 3000)
+}
+
+// ── Utils ────────────────────────────────────────────────────
+function esc(str) {
+  if (!str) return ''
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function fmtDate(d) {
+  if (!d) return '—'
+  const dt = new Date(d)
+  return dt.toLocaleDateString('en-UG', { day:'numeric', month:'short', year:'numeric' })
+    + ' ' + dt.toLocaleTimeString('en-UG', { hour:'2-digit', minute:'2-digit' })
+}
+</script>
+</body>
+</html>
