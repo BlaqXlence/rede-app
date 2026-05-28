@@ -32,7 +32,7 @@ export function DatePicker({ label, value, onChange, error }) {
   const [open, setOpen] = useState(false)
 
   const today   = new Date(); today.setHours(0,0,0,0)
-  const maxDate = new Date(today); maxDate.setDate(today.getDate() + 7)
+  const maxDate = new Date(today); maxDate.setDate(today.getDate() + 30)
   const selected = value ? new Date(value + 'T00:00:00') : null
 
   const [vy, setVY] = useState(today.getFullYear())
@@ -143,7 +143,7 @@ export function DatePicker({ label, value, onChange, error }) {
           </View>
 
           <Text style={[styles.hint, { color: colors.textHint }]}>
-            Events can be posted up to 7 days ahead
+            Events can be posted up to 30 days ahead
           </Text>
         </View>
       </Modal>

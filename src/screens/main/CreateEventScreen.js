@@ -1,18 +1,16 @@
 /**
  * CreateEventScreen.js
- *
- * 3-step event creation.
- * - Back arrow on step 1 exits the screen (goes back to previous page)
- * - Back arrow on steps 2/3 goes to previous step
- * - Post Event button is ALWAYS visible in a fixed footer — never gets lost
- * - On steps 1/2 it shows "Continue →", greyed if current step invalid
- * - Max attendees: numbers only, minimum 2
+ * - Checks profile name before allowing any creation
+ * - 30-day planning window (was 7)
+ * - After post, navigates to Home (not back to create)
+ * - Back button on step 1 goes to Home, not create loop
  */
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Platform, Alert, TextInput,
-  KeyboardAvoidingView, Dimensions,
+  KeyboardAvoidingView, Dimensions, Modal,
+  TouchableWithoutFeedback,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore    from '../../store/themeStore'
@@ -27,14 +25,6 @@ const { width } = Dimensions.get('window')
 const MAX_W     = Math.min(width, 500)
 const CATS      = EVENT_CATEGORIES.filter(c => c.id !== 'all')
 
-const BLANK = {
-  title: '', category: null,
-  date: '', startTime: '', endTime: '',
-  location: { cityId: 'kampala', area: '', venueName: '', lat: 0.3476, lng: 32.5825 },
-  description: '', photoUri: null, photoFile: null, maxAttendees: '',
-}
-
-// Default cover images per category if user doesn't upload one
 const DEFAULT_COVERS = {
   party:   'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=600',
   sports:  'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600',
@@ -46,22 +36,37 @@ const DEFAULT_COVERS = {
   art:     'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600',
 }
 
+const BLANK = {
+  title: '', category: null,
+  date: '', startTime: '', endTime: '',
+  location: { cityId: 'kampala', area: '', venueName: '', lat: 0.3476, lng: 32.5825 },
+  description: '', photoUri: null, photoFile: null, maxAttendees: '',
+}
+
 export default function CreateEventScreen({ navigation }) {
   const { colors }      = useThemeStore()
   const { createEvent } = useEventsStore()
   const { user }        = useAuthStore()
 
-  const [step,    setStep]    = useState(1)
-  const [form,    setForm]    = useState(BLANK)
-  const [errors,  setErrors]  = useState({})
-  const [posting, setPosting] = useState(false)
+  const [ready,    setReady]    = useState(false)  // passed the profile check
+  const [step,     setStep]     = useState(1)
+  const [form,     setForm]     = useState(BLANK)
+  const [errors,   setErrors]   = useState({})
+  const [posting,  setPosting]  = useState(false)
+
+  // Check profile name on mount — show gate modal if missing
+  useEffect(() => {
+    if (user?.name && user.name.trim().length >= 2) {
+      setReady(true)
+    }
+    // else the gate modal shows
+  }, [user])
 
   function setField(field, value) {
     setForm(p => ({ ...p, [field]: value }))
     if (errors[field]) setErrors(p => ({ ...p, [field]: null }))
   }
 
-  // Validate current step — returns error object
   function validate(s) {
     const e = {}
     if (s === 1) {
@@ -71,39 +76,28 @@ export default function CreateEventScreen({ navigation }) {
         e.category = 'Pick a category'
     }
     if (s === 2) {
-      if (!form.date)
-        e.date = 'Pick a date'
-      else if (form.startTime) {
-        const d = new Date(`${form.date}T${form.startTime}:00`)
-        if (d < new Date(Date.now() + 2 * 3_600_000))
-          e.date = 'Event must start at least 2 hours from now'
-      }
-      if (!form.startTime) e.startTime = 'Set a start time'
-      if (!form.endTime)   e.endTime   = 'Set an end time'
+      if (!form.date)         e.date      = 'Pick a date'
+      if (!form.startTime)    e.startTime = 'Set a start time'
+      if (!form.endTime)      e.endTime   = 'Set an end time'
       if (form.startTime && form.endTime && form.endTime <= form.startTime)
         e.endTime = 'End time must be after start time'
       if (!form.location?.venueName?.trim())
-        e.location = 'Enter the venue or landmark name'
+        e.location = 'Enter the venue name'
     }
     if (s === 3) {
       if (!form.description.trim() || form.description.trim().length < 50)
-        e.description = 'Describe your event (min 50 characters)'
+        e.description = 'Describe your event — at least 50 characters'
       const max = form.maxAttendees ? parseInt(form.maxAttendees, 10) : null
       if (max !== null && (isNaN(max) || max < 2))
-        e.maxAttendees = 'Must be at least 2 attendees'
+        e.maxAttendees = 'Minimum 2 attendees'
     }
     return e
   }
 
-  // Is the current step valid enough to proceed?
-  const stepValid = useMemo(() => {
-    return Object.keys(validate(step)).length === 0
-  }, [form, step])
-
   function handleBack() {
     if (step === 1) {
-      // Exit the create flow entirely — go back to previous screen
-      navigation.goBack()
+      // Go to Home — not back to create loop
+      navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })
     } else {
       setStep(s => s - 1)
     }
@@ -118,18 +112,6 @@ export default function CreateEventScreen({ navigation }) {
   async function handlePost() {
     const e = validate(3)
     if (Object.keys(e).length) { setErrors(e); return }
-
-    if (!user?.name || user.name.trim().length < 2) {
-      Alert.alert(
-        'Complete your profile first',
-        'Add your name in Profile before creating events.',
-        [
-          { text: 'Go to Profile', onPress: () => navigation.navigate('Profile') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      )
-      return
-    }
 
     setPosting(true)
     try {
@@ -148,17 +130,26 @@ export default function CreateEventScreen({ navigation }) {
           venueName: form.location.venueName.trim(),
           area:      form.location.area || '',
           city:      form.location.cityId || 'kampala',
-          lat:       form.location.lat || 0.3476,
-          lng:       form.location.lng || 32.5825,
+          lat:       form.location.lat   || 0.3476,
+          lng:       form.location.lng   || 32.5825,
           mapsLink:  form.location.mapsLink || null,
         },
         maxAttendees: form.maxAttendees ? parseInt(form.maxAttendees, 10) : null,
         entryFee: 0, originalFee: null, tags: [],
       })
 
+      // Reset form
       setForm(BLANK)
       setStep(1)
-      navigation.navigate('EventDetail', { eventId: event.id, event })
+
+      // Go to the event — back from there goes HOME not create
+      navigation.reset({
+        index: 1,
+        routes: [
+          { name: 'Tabs' },
+          { name: 'EventDetail', params: { eventId: event.id, event } },
+        ],
+      })
     } catch (err) {
       Alert.alert('Could not post event', err.message || 'Check your connection and try again.')
     } finally {
@@ -166,89 +157,101 @@ export default function CreateEventScreen({ navigation }) {
     }
   }
 
-  // Progress bar colour
-  function barColor(i) {
-    if (i < step)  return colors.primary
-    if (i === step) return colors.primary
-    return colors.border
+  // ── Gate modal — shown when name is missing ──────────────
+  if (!ready) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.phone, { maxWidth: MAX_W }]}>
+          {/* Still show a back arrow so user isn't trapped */}
+          <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <Text style={[styles.backTxt, { color: colors.primary }]}>←</Text>
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Create Event</Text>
+            <View style={{ width: 30 }} />
+          </View>
+
+          <View style={styles.gateWrap}>
+            <Text style={{ fontSize: 56, marginBottom: 20 }}>👤</Text>
+            <Text style={[styles.gateTitle, { color: colors.textPrimary }]}>
+              Set up your profile first
+            </Text>
+            <Text style={[styles.gateSub, { color: colors.textSecondary }]}>
+              Before creating an event, people need to know who you are. Add your name to your profile so attendees can trust the event is legitimate.
+            </Text>
+
+            <View style={[styles.gateChecklist, { backgroundColor: colors.surface }]}>
+              <GateItem done={!!(user?.name?.trim()?.length >= 2)} label="Add your name" colors={colors} />
+              <GateItem done={!!user?.verified}                    label="Verify your phone number" colors={colors} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.gateBtn, { backgroundColor: colors.primary }]}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Text style={styles.gateBtnTxt}>Go to Settings →</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 14 }}>
+              <Text style={[styles.gateSkip, { color: colors.textHint }]}>Not now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    )
   }
 
+  // ── Main creation flow ───────────────────────────────────
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <View style={[styles.phone, { maxWidth: MAX_W }]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
-          keyboardVerticalOffset={0}
         >
-
-          {/* ── Header — back arrow always present ──── */}
+          {/* Header */}
           <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <TouchableOpacity
-              onPress={handleBack}
-              style={styles.backBtn}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
+            <TouchableOpacity onPress={handleBack} style={styles.backBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Text style={[styles.backTxt, { color: colors.primary }]}>←</Text>
             </TouchableOpacity>
-
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Create Event</Text>
-
-            <Text style={[styles.stepIndicator, { color: colors.textHint }]}>{step}/3</Text>
+            <Text style={[styles.stepNum, { color: colors.textHint }]}>{step}/3</Text>
           </View>
 
-          {/* Progress bars */}
+          {/* Progress */}
           <View style={[styles.progressRow, { backgroundColor: colors.surface }]}>
-            {[1, 2, 3].map(i => (
-              <View
-                key={i}
-                style={[styles.progressBar, { backgroundColor: i <= step ? colors.primary : colors.border }]}
-              />
+            {[1,2,3].map(i => (
+              <View key={i} style={[styles.bar, { backgroundColor: i <= step ? colors.primary : colors.border }]} />
             ))}
           </View>
 
-          {/* ── Scrollable content ───────────────────── */}
+          {/* Scrollable form */}
           <ScrollView
             contentContainerStyle={styles.body}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-
-            {/* STEP 1: Title + Category */}
+            {/* ── Step 1: What ── */}
             {step === 1 && (
               <>
-                <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
-                  What's the event?
-                </Text>
+                <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>What's the event?</Text>
 
-                <Field label="Event Title" error={errors.title} colors={colors}>
-                  {Platform.OS === 'web' ? (
-                    <input
-                      value={form.title}
-                      onChange={e => setField('title', e.target.value)}
-                      placeholder="e.g. Friday Rooftop Party"
-                      maxLength={80}
-                      style={webInput(colors, errors.title)}
-                    />
-                  ) : (
-                    <TextInput
-                      style={[styles.textInput, { backgroundColor: colors.surface, borderColor: errors.title ? colors.error : colors.border, color: colors.textPrimary }]}
-                      value={form.title}
-                      onChangeText={v => setField('title', v)}
-                      placeholder="e.g. Friday Rooftop Party"
-                      placeholderTextColor={colors.textHint}
-                      autoCapitalize="sentences"
-                      maxLength={80}
-                      selectionColor={colors.primary}
-                      underlineColorAndroid="transparent"
-                    />
-                  )}
-                  <Text style={[styles.hint, { color: colors.textHint }]}>{form.title.length}/80</Text>
-                </Field>
+                <FieldWrap label="Title" error={errors.title} hint={`${form.title.length}/80`} colors={colors}>
+                  <WebOrNative
+                    value={form.title}
+                    onChange={v => setField('title', v)}
+                    placeholder="e.g. Friday Rooftop Party"
+                    maxLength={80}
+                    autoCapitalize="sentences"
+                    error={errors.title}
+                    colors={colors}
+                  />
+                </FieldWrap>
 
                 <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Category</Text>
                 {errors.category && <Text style={[styles.errorTxt, { color: colors.error }]}>{errors.category}</Text>}
-                <View style={styles.chipGrid}>
+                <View style={styles.chips}>
                   {CATS.map(cat => {
                     const active = form.category === cat.id
                     const accent = colors.cat[cat.id] || colors.primary
@@ -256,13 +259,10 @@ export default function CreateEventScreen({ navigation }) {
                       <TouchableOpacity
                         key={cat.id}
                         onPress={() => setField('category', cat.id)}
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: active ? accent : colors.surface,
-                            borderColor: active ? accent : colors.border,
-                          }
-                        ]}
+                        style={[styles.chip, {
+                          backgroundColor: active ? accent : colors.surface,
+                          borderColor:     active ? accent : colors.border,
+                        }]}
                         activeOpacity={0.75}
                       >
                         <Text style={[styles.chipTxt, { color: active ? '#fff' : colors.textSecondary }]}>
@@ -275,32 +275,13 @@ export default function CreateEventScreen({ navigation }) {
               </>
             )}
 
-            {/* STEP 2: Date, Time, Location */}
+            {/* ── Step 2: When & Where ── */}
             {step === 2 && (
               <>
-                <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
-                  When & where?
-                </Text>
-
-                <DatePicker
-                  label="Date"
-                  value={form.date}
-                  onChange={v => setField('date', v)}
-                  error={errors.date}
-                />
-                <TimePicker
-                  label="Start Time"
-                  value={form.startTime}
-                  onChange={v => setField('startTime', v)}
-                  error={errors.startTime}
-                />
-                <TimePicker
-                  label="End Time"
-                  value={form.endTime}
-                  onChange={v => setField('endTime', v)}
-                  error={errors.endTime}
-                />
-
+                <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>When & where?</Text>
+                <DatePicker  label="Date"       value={form.date}      onChange={v => setField('date', v)}      error={errors.date} />
+                <TimePicker  label="Start Time" value={form.startTime} onChange={v => setField('startTime', v)} error={errors.startTime} />
+                <TimePicker  label="End Time"   value={form.endTime}   onChange={v => setField('endTime', v)}   error={errors.endTime} />
                 <LocationPicker
                   value={form.location}
                   onChange={loc => { setField('location', loc); setErrors(p => ({ ...p, location: null })) }}
@@ -309,44 +290,24 @@ export default function CreateEventScreen({ navigation }) {
               </>
             )}
 
-            {/* STEP 3: Description + Photo + Capacity */}
+            {/* ── Step 3: Details ── */}
             {step === 3 && (
               <>
-                <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
-                  Tell people more
-                </Text>
+                <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>Tell people more</Text>
 
-                <Field label="Description" error={errors.description} colors={colors}>
-                  {Platform.OS === 'web' ? (
-                    <textarea
-                      value={form.description}
-                      onChange={e => setField('description', e.target.value)}
-                      placeholder="What's happening? Who should come? What to expect? (min 50 characters)"
-                      maxLength={1000}
-                      rows={5}
-                      style={{ ...webInput(colors, errors.description), minHeight: 120, resize: 'none' }}
-                    />
-                  ) : (
-                    <TextInput
-                      style={[
-                        styles.textInput, styles.textArea,
-                        { backgroundColor: colors.surface, borderColor: errors.description ? colors.error : colors.border, color: colors.textPrimary }
-                      ]}
-                      value={form.description}
-                      onChangeText={v => setField('description', v)}
-                      placeholder="What's happening? Who should come? What to expect?"
-                      placeholderTextColor={colors.textHint}
-                      multiline numberOfLines={5}
-                      autoCapitalize="sentences"
-                      maxLength={1000}
-                      selectionColor={colors.primary}
-                      underlineColorAndroid="transparent"
-                    />
-                  )}
-                  <Text style={[styles.hint, { color: colors.textHint }]}>
-                    {form.description.length}/1000 · min 50 chars
-                  </Text>
-                </Field>
+                <FieldWrap label="Description" error={errors.description}
+                  hint={`${form.description.length}/1000 · min 50 chars`} colors={colors}>
+                  <WebOrNative
+                    value={form.description}
+                    onChange={v => setField('description', v)}
+                    placeholder="What's happening? Who should come? What to expect?"
+                    maxLength={1000}
+                    multiline
+                    autoCapitalize="sentences"
+                    error={errors.description}
+                    colors={colors}
+                  />
+                </FieldWrap>
 
                 <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Cover Photo</Text>
                 <PhotoUpload
@@ -355,84 +316,43 @@ export default function CreateEventScreen({ navigation }) {
                   onRemove={() => { setField('photoUri', null); setField('photoFile', null) }}
                 />
 
-                {/* Max attendees — numbers only, min 2 */}
-                <Field
-                  label="Max Attendees (optional)"
-                  hint="Leave blank for unlimited. Minimum 2 if set."
-                  error={errors.maxAttendees}
-                  colors={colors}
-                >
-                  {Platform.OS === 'web' ? (
-                    <input
-                      value={form.maxAttendees}
-                      onChange={e => {
-                        const v = e.target.value.replace(/\D/g, '')
-                        setField('maxAttendees', v)
-                        setErrors(p => ({ ...p, maxAttendees: null }))
-                      }}
-                      placeholder="e.g. 50"
-                      type="number"
-                      min="2"
-                      style={webInput(colors, errors.maxAttendees)}
-                    />
-                  ) : (
-                    <TextInput
-                      style={[
-                        styles.textInput,
-                        { backgroundColor: colors.surface, borderColor: errors.maxAttendees ? colors.error : colors.border, color: colors.textPrimary }
-                      ]}
-                      value={form.maxAttendees}
-                      onChangeText={v => {
-                        const clean = v.replace(/\D/g, '')
-                        setField('maxAttendees', clean)
-                        setErrors(p => ({ ...p, maxAttendees: null }))
-                      }}
-                      placeholder="e.g. 50"
-                      placeholderTextColor={colors.textHint}
-                      keyboardType="number-pad"
-                      selectionColor={colors.primary}
-                      underlineColorAndroid="transparent"
-                    />
-                  )}
-                </Field>
+                <FieldWrap label="Max Attendees (optional)"
+                  hint="Leave blank for unlimited. Minimum 2."
+                  error={errors.maxAttendees} colors={colors}>
+                  <WebOrNative
+                    value={form.maxAttendees}
+                    onChange={v => setField('maxAttendees', v.replace(/\D/g, ''))}
+                    placeholder="e.g. 50"
+                    keyboardType="number-pad"
+                    inputType="number"
+                    error={errors.maxAttendees}
+                    colors={colors}
+                  />
+                </FieldWrap>
 
-                {/* Entry fee info */}
                 <View style={[styles.infoBox, { backgroundColor: colors.surface }]}>
-                  <Text style={[styles.infoTitle, { color: colors.textHint }]}>Entry Fee</Text>
+                  <Text style={[styles.infoLabel, { color: colors.textHint }]}>ENTRY FEE</Text>
                   <Text style={[styles.infoValue, { color: colors.textPrimary }]}>Free during beta</Text>
-                  <Text style={[styles.infoNote, { color: colors.textHint }]}>
-                    Paid events coming soon with MTN MoMo
-                  </Text>
+                  <Text style={[styles.infoNote, { color: colors.textHint }]}>Paid events with MTN MoMo coming soon</Text>
                 </View>
               </>
             )}
 
-            {/* Space so content isn't hidden behind footer */}
-            <View style={{ height: 20 }} />
+            <View style={{ height: 16 }} />
           </ScrollView>
 
-          {/* ── Fixed footer — ALWAYS visible, never lost ── */}
+          {/* Fixed footer button — never scrolls away */}
           <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-            {step < 3 ? (
-              <TouchableOpacity
-                style={[styles.footerBtn, { backgroundColor: colors.primary }]}
-                onPress={handleContinue}
-                activeOpacity={0.87}
-              >
-                <Text style={styles.footerBtnTxt}>Continue →</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[styles.footerBtn, { backgroundColor: colors.primary, opacity: posting ? 0.6 : 1 }]}
-                onPress={handlePost}
-                disabled={posting}
-                activeOpacity={0.87}
-              >
-                <Text style={styles.footerBtnTxt}>
-                  {posting ? 'Posting...' : '🚀  Post Event'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.footerBtn, { backgroundColor: colors.primary, opacity: posting ? 0.6 : 1 }]}
+              onPress={step < 3 ? handleContinue : handlePost}
+              disabled={posting}
+              activeOpacity={0.87}
+            >
+              <Text style={styles.footerBtnTxt}>
+                {step < 3 ? 'Continue →' : posting ? 'Posting...' : '🚀  Post Event'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
         </KeyboardAvoidingView>
@@ -441,102 +361,156 @@ export default function CreateEventScreen({ navigation }) {
   )
 }
 
-/* ── Small helpers ──────────────────────────────────────────── */
-function Field({ label, hint, error, colors, children }) {
+// ── Small helpers ────────────────────────────────────────────
+
+function GateItem({ done, label, colors }) {
   return (
-    <View style={styles.fieldWrap}>
-      <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{label}</Text>
-      {children}
-      {error ? (
-        <Text style={[styles.errorTxt, { color: colors.error }]}>{error}</Text>
-      ) : hint ? (
-        <Text style={[styles.hint, { color: colors.textHint }]}>{hint}</Text>
-      ) : null}
+    <View style={styles.gateItem}>
+      <View style={[styles.gateDot, { backgroundColor: done ? colors.success : colors.border }]}>
+        {done && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text>}
+      </View>
+      <Text style={[styles.gateItemTxt, { color: done ? colors.textPrimary : colors.textSecondary }]}>
+        {label}
+      </Text>
     </View>
   )
 }
 
-function webInput(colors, error) {
-  return {
-    width: '100%', boxSizing: 'border-box',
-    backgroundColor: colors.surface, color: colors.textPrimary,
-    border: `1.5px solid ${error ? colors.error : colors.border}`,
-    borderRadius: 12, padding: '13px 14px',
-    fontSize: 16, fontFamily: 'inherit',
-    outline: 'none', display: 'block',
+function FieldWrap({ label, hint, error, children, colors }) {
+  return (
+    <View style={styles.fieldWrap}>
+      <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{label}</Text>
+      {children}
+      {error
+        ? <Text style={[styles.errorTxt, { color: colors.error }]}>{error}</Text>
+        : hint
+        ? <Text style={[styles.hint, { color: colors.textHint }]}>{hint}</Text>
+        : null
+      }
+    </View>
+  )
+}
+
+function WebOrNative({ value, onChange, placeholder, maxLength, multiline, autoCapitalize, keyboardType, inputType, error, colors }) {
+  const borderColor = error ? colors.error : colors.border
+  if (Platform.OS === 'web') {
+    if (multiline) {
+      return (
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          maxLength={maxLength || 1000}
+          rows={5}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            backgroundColor: colors.surface, color: colors.textPrimary,
+            border: `1.5px solid ${borderColor}`, borderRadius: 12,
+            padding: '13px 14px', fontSize: 16, fontFamily: 'inherit',
+            resize: 'none', outline: 'none', display: 'block', minHeight: 120,
+          }}
+        />
+      )
+    }
+    return (
+      <input
+        value={value}
+        onChange={e => {
+          let v = e.target.value
+          if (inputType === 'number') v = v.replace(/\D/g, '')
+          onChange(v)
+        }}
+        placeholder={placeholder}
+        maxLength={maxLength || 80}
+        type={inputType === 'number' ? 'number' : 'text'}
+        min={inputType === 'number' ? 2 : undefined}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          backgroundColor: colors.surface, color: colors.textPrimary,
+          border: `1.5px solid ${borderColor}`, borderRadius: 12,
+          padding: '13px 14px', fontSize: 16, fontFamily: 'inherit',
+          outline: 'none', display: 'block',
+        }}
+      />
+    )
   }
+  return (
+    <TextInput
+      style={[
+        styles.textInput,
+        multiline && styles.textArea,
+        { backgroundColor: colors.surface, borderColor, color: colors.textPrimary }
+      ]}
+      value={value}
+      onChangeText={onChange}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textHint}
+      multiline={multiline}
+      numberOfLines={multiline ? 5 : 1}
+      autoCapitalize={autoCapitalize || 'none'}
+      keyboardType={keyboardType || 'default'}
+      maxLength={maxLength}
+      selectionColor={colors.primary}
+      underlineColorAndroid="transparent"
+    />
+  )
 }
 
 const styles = StyleSheet.create({
   safe:  { flex: 1, alignItems: 'center' },
   phone: { flex: 1, width: '100%' },
 
-  // Header
   header: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1,
   },
-  backBtn:       { padding: 4 },
-  backTxt:       { fontSize: 22, fontWeight: '700' },
-  headerTitle:   { fontSize: 17, fontWeight: '800' },
-  stepIndicator: { fontSize: 13, fontWeight: '600', minWidth: 30, textAlign: 'right' },
+  backBtn:     { padding: 4 },
+  backTxt:     { fontSize: 22, fontWeight: '700' },
+  headerTitle: { fontSize: 17, fontWeight: '800' },
+  stepNum:     { fontSize: 13, fontWeight: '600', minWidth: 30, textAlign: 'right' },
 
-  // Progress bars
-  progressRow: {
-    flexDirection: 'row', gap: 6,
-    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12,
-  },
-  progressBar: { flex: 1, height: 3, borderRadius: 2 },
+  progressRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingVertical: 10 },
+  bar: { flex: 1, height: 3, borderRadius: 2 },
 
-  // Body
-  body: { padding: 20, paddingBottom: 16 },
+  body:      { padding: 20, paddingBottom: 16 },
   stepTitle: { fontSize: 22, fontWeight: '900', marginBottom: 20, letterSpacing: -0.3 },
 
-  // Fields
   fieldWrap:  { marginBottom: 18 },
   fieldLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 },
   errorTxt:   { fontSize: 12, marginTop: 4 },
   hint:       { fontSize: 11, marginTop: 4 },
 
-  // Text inputs
   textInput: {
     borderWidth: 1.5, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 14,
-    fontSize: 15,
+    paddingHorizontal: 14, paddingVertical: 14, fontSize: 15,
   },
   textArea: { minHeight: 120, textAlignVertical: 'top' },
 
-  // Category chips
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   chip: {
     borderRadius: 20, borderWidth: 1.5,
     paddingHorizontal: 14, paddingVertical: 9,
   },
   chipTxt: { fontSize: 13, fontWeight: '600' },
 
-  // Info box
-  infoBox: { borderRadius: 12, padding: 14, marginTop: 4 },
-  infoTitle: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoBox:   { borderRadius: 12, padding: 14, marginTop: 4 },
+  infoLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   infoValue: { fontSize: 15, fontWeight: '700', marginTop: 4 },
   infoNote:  { fontSize: 12, marginTop: 3 },
 
-  // Footer — fixed, always visible
-  footer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-  },
-  footerBtn: {
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  footerBtnTxt: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
+  footer: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
+  footerBtn: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  footerBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
+
+  // Gate screen
+  gateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  gateTitle: { fontSize: 22, fontWeight: '900', textAlign: 'center', marginBottom: 12 },
+  gateSub:   { fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: 28 },
+  gateChecklist: { borderRadius: 14, padding: 16, width: '100%', marginBottom: 24, gap: 14 },
+  gateItem:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  gateDot:   { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  gateItemTxt: { fontSize: 15, fontWeight: '600' },
+  gateBtn:   { borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
+  gateBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  gateSkip:  { fontSize: 14, textDecorationLine: 'underline' },
 })

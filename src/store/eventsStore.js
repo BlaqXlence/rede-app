@@ -52,7 +52,18 @@ const useEventsStore = create((set, get) => ({
     try {
       const data = await eventsApi.list({ lat, lng, radius: 100 })
       if (data.events?.length > 0) {
-        set({ events: data.events })
+        // Sort: happening now first, then soonest upcoming first
+        const now    = new Date()
+        const sorted = [...data.events].sort((a, b) => {
+          const aStart = new Date(a.startTime)
+          const bStart = new Date(b.startTime)
+          const aLive  = aStart <= now && new Date(a.endTime) >= now
+          const bLive  = bStart <= now && new Date(b.endTime) >= now
+          if (aLive && !bLive) return -1
+          if (!aLive && bLive) return 1
+          return aStart - bStart   // soonest first
+        })
+        set({ events: sorted })
         get()._buildFeed(lat, lng)
       }
       // Also sync attending list from server
