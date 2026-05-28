@@ -1,8 +1,9 @@
 /**
  * eventsStore.js
- * - createEvent saves locally first, then DB in background
- * - joinEvent/leaveEvent update count optimistically from server response
- * - attending list synced from server on load
+ * - attending list persisted to AsyncStorage (survives app restarts)
+ * - liked events persisted
+ * - cache for fast startup
+ * - loadMore for pagination
  */
 import { create } from 'zustand'
 import * as ExpoLocation from 'expo-location'
@@ -13,54 +14,70 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { generateEventId } from '../utils/formatters'
 import { eventsApi } from '../services/api'
 
-const CACHE_KEY = 'rede:events:cache'
+const CACHE_KEY     = 'rede:events:cache'
+const ATTENDING_KEY = 'rede:attending'
+const LIKED_KEY     = 'rede:liked'
 
 const useEventsStore = create((set, get) => ({
   userLocation:     null,
   locationName:     'Kampala',
   locationPermission: null,
-  events:           MOCK_EVENTS,
+  events:           [],
   feed:             { byCategory: {}, happeningNow: [], all: [] },
-  attending:        [],   // event IDs user is attending (local cache)
+  attending:        [],
+  likedEvents:      [],
   searchResults:    [],
   recentSearches:   [],
   selectedCategory: 'all',
   isLoadingEvents:  false,
-  likedEvents:      [],    // event IDs the user has liked (heart)
+
+  // Load persisted attending + liked on startup
+  loadPersistedData: async () => {
+    try {
+      const [att, liked] = await Promise.all([
+        AsyncStorage.getItem(ATTENDING_KEY),
+        AsyncStorage.getItem(LIKED_KEY),
+      ])
+      if (att)   set({ attending:   JSON.parse(att) })
+      if (liked) set({ likedEvents: JSON.parse(liked) })
+    } catch {}
+  },
 
   requestLocation: async () => {
-    // Step 1 — load cached events instantly so screen fills in <100ms
+    // Load cache instantly so screen fills right away
     try {
       const cached = await AsyncStorage.getItem(CACHE_KEY)
       if (cached) {
         const events = JSON.parse(cached)
         if (events?.length > 0) {
-          set({ events, isLoadingEvents: false })
+          // Filter out past events before showing cache
+          const now    = new Date()
+          const future = events.filter(e => new Date(e.endTime) > now)
+          set({ events: future, isLoadingEvents: false })
           get()._buildFeed(DEFAULT_CITY.lat, DEFAULT_CITY.lng)
         }
       }
     } catch {}
 
-    // Step 2 — get location and fetch fresh data in background
     try {
       const { status } = await ExpoLocation.requestForegroundPermissionsAsync()
       set({ locationPermission: status })
-      if (status !== 'granted') {
+      const loc = status === 'granted'
+        ? await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced })
+        : null
+      if (loc) {
+        const { latitude, longitude } = loc.coords
+        const [place] = await ExpoLocation.reverseGeocodeAsync({ latitude, longitude })
+        const name = place?.district || place?.city || place?.region || 'Kampala'
+        set({ userLocation: { lat: latitude, lng: longitude }, locationName: name })
+        get()._buildFeed(latitude, longitude)
+        await get()._fetchEvents(latitude, longitude)
+      } else {
         get()._buildFeed(DEFAULT_CITY.lat, DEFAULT_CITY.lng)
         await get()._fetchEvents(DEFAULT_CITY.lat, DEFAULT_CITY.lng)
-        return
       }
-      const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced })
-      const { latitude, longitude } = pos.coords
-      const [place] = await ExpoLocation.reverseGeocodeAsync({ latitude, longitude })
-      const name = place?.district || place?.city || place?.region || 'Kampala'
-      set({ userLocation: { lat: latitude, lng: longitude }, locationName: name })
-      get()._buildFeed(latitude, longitude)
-      // Fetch fresh — runs after cache already shown
-      await get()._fetchEvents(latitude, longitude)
     } catch {
       get()._buildFeed(DEFAULT_CITY.lat, DEFAULT_CITY.lng)
-      // Try fetch even without location
       get()._fetchEvents(DEFAULT_CITY.lat, DEFAULT_CITY.lng).catch(() => {})
     }
   },
@@ -70,9 +87,10 @@ const useEventsStore = create((set, get) => ({
     try {
       const data = await eventsApi.list({ lat, lng, radius: 100, limit: 12 })
       if (data.events?.length > 0) {
-        // Sort: happening now first, then soonest upcoming, most recent after
         const now    = new Date()
-        const sorted = [...data.events].sort((a, b) => {
+        // Only future events on home feed
+        const future = data.events.filter(e => new Date(e.endTime) > now)
+        const sorted = [...future].sort((a, b) => {
           const aStart = new Date(a.startTime)
           const bStart = new Date(b.startTime)
           const aLive  = aStart <= now && new Date(a.endTime) >= now
@@ -83,17 +101,17 @@ const useEventsStore = create((set, get) => ({
         })
         set({ events: sorted })
         get()._buildFeed(lat, lng)
-        // Save to cache so next open is instant
         AsyncStorage.setItem(CACHE_KEY, JSON.stringify(sorted)).catch(() => {})
       }
-      // Also sync attending list from server
+      // Sync attending from server
       try {
         const attData = await eventsApi.attending()
-        const attendingIds = (attData.events || []).map(e => e.id)
-        set({ attending: attendingIds })
+        const ids = (attData.events || []).map(e => e.id)
+        set({ attending: ids })
+        AsyncStorage.setItem(ATTENDING_KEY, JSON.stringify(ids)).catch(() => {})
       } catch {}
     } catch (err) {
-      console.log('Using local events:', err.message)
+      console.log('Using cached events:', err.message)
     } finally {
       set({ isLoadingEvents: false })
     }
@@ -125,8 +143,6 @@ const useEventsStore = create((set, get) => ({
 
   createEvent: async (draft) => {
     const { user } = require('./authStore').default.getState()
-
-    // Save locally first so user sees it immediately
     const localEvent = {
       ...draft,
       id: `EVT-${generateEventId()}`,
@@ -138,13 +154,11 @@ const useEventsStore = create((set, get) => ({
       attendeeCount: 0,
       createdAt: new Date().toISOString(),
     }
-
     const events = [localEvent, ...get().events]
-    const loc = get().userLocation || { lat: DEFAULT_CITY.lat, lng: DEFAULT_CITY.lng }
+    const loc    = get().userLocation || { lat: DEFAULT_CITY.lat, lng: DEFAULT_CITY.lng }
     set({ events })
     get()._buildFeed(loc.lat, loc.lng)
 
-    // Save to DB in background
     try {
       const response = await eventsApi.create({
         title:            draft.title,
@@ -165,33 +179,29 @@ const useEventsStore = create((set, get) => ({
         ...response.event,
         location: { ...response.event.location, venueName: draft.location.venueName, area: draft.location.area },
       }
-      // Replace local placeholder with real DB event
-      const updatedEvents = get().events.map(e => e.id === localEvent.id ? dbEvent : e)
-      set({ events: updatedEvents })
+      const updated = get().events.map(e => e.id === localEvent.id ? dbEvent : e)
+      set({ events: updated })
       get()._buildFeed(loc.lat, loc.lng)
-      // Refresh full list from server so home feed is up to date
       get()._fetchEvents(loc.lat, loc.lng).catch(() => {})
       return dbEvent
     } catch (err) {
-      console.warn('DB save failed, removing local event:', err.message)
-      // Remove the local placeholder — don't show broken events
-      const withoutLocal = get().events.filter(e => e.id !== localEvent.id)
-      set({ events: withoutLocal })
+      // Remove local placeholder on failure
+      const without = get().events.filter(e => e.id !== localEvent.id)
+      set({ events: without })
       get()._buildFeed(loc.lat, loc.lng)
       throw new Error('Could not save event. Check your connection and try again.')
     }
   },
 
-  // Optimistic join — updates count immediately from server response
   joinEvent: async (eventId) => {
-    // Optimistic update
+    const newAttending = [...new Set([...get().attending, eventId])]
     set(state => ({
       events:    state.events.map(e => e.id === eventId ? { ...e, attendeeCount: e.attendeeCount + 1 } : e),
-      attending: [...new Set([...state.attending, eventId])],
+      attending: newAttending,
     }))
+    AsyncStorage.setItem(ATTENDING_KEY, JSON.stringify(newAttending)).catch(() => {})
     try {
       const res = await eventsApi.join(eventId)
-      // Sync real count from server
       if (res.attendeeCount !== undefined) {
         set(state => ({
           events: state.events.map(e => e.id === eventId ? { ...e, attendeeCount: res.attendeeCount } : e),
@@ -199,19 +209,23 @@ const useEventsStore = create((set, get) => ({
       }
     } catch (err) {
       // Revert on failure
+      const reverted = get().attending.filter(id => id !== eventId)
       set(state => ({
         events:    state.events.map(e => e.id === eventId ? { ...e, attendeeCount: Math.max(0, e.attendeeCount - 1) } : e),
-        attending: state.attending.filter(id => id !== eventId),
+        attending: reverted,
       }))
+      AsyncStorage.setItem(ATTENDING_KEY, JSON.stringify(reverted)).catch(() => {})
       throw err
     }
   },
 
   leaveEvent: async (eventId) => {
+    const newAttending = get().attending.filter(id => id !== eventId)
     set(state => ({
       events:    state.events.map(e => e.id === eventId ? { ...e, attendeeCount: Math.max(0, e.attendeeCount - 1) } : e),
-      attending: state.attending.filter(id => id !== eventId),
+      attending: newAttending,
     }))
+    AsyncStorage.setItem(ATTENDING_KEY, JSON.stringify(newAttending)).catch(() => {})
     try {
       const res = await eventsApi.leave(eventId)
       if (res.attendeeCount !== undefined) {
@@ -222,14 +236,18 @@ const useEventsStore = create((set, get) => ({
     } catch {}
   },
 
-  // Server-side truth check for attending status
   checkAttending: async (eventId) => {
     try {
       const res = await eventsApi.checkAttending(eventId)
-      if (res.attending && !get().attending.includes(eventId)) {
-        set(state => ({ attending: [...state.attending, eventId] }))
-      } else if (!res.attending && get().attending.includes(eventId)) {
-        set(state => ({ attending: state.attending.filter(id => id !== eventId) }))
+      const attending = get().attending
+      if (res.attending && !attending.includes(eventId)) {
+        const updated = [...attending, eventId]
+        set({ attending: updated })
+        AsyncStorage.setItem(ATTENDING_KEY, JSON.stringify(updated)).catch(() => {})
+      } else if (!res.attending && attending.includes(eventId)) {
+        const updated = attending.filter(id => id !== eventId)
+        set({ attending: updated })
+        AsyncStorage.setItem(ATTENDING_KEY, JSON.stringify(updated)).catch(() => {})
       }
       return res.attending
     } catch {
@@ -238,47 +256,45 @@ const useEventsStore = create((set, get) => ({
   },
 
   toggleLike: async (eventId) => {
-    const liked = get().likedEvents
-    const updated = liked.includes(eventId)
-      ? liked.filter(id => id !== eventId)
-      : [...liked, eventId]
+    const liked   = get().likedEvents
+    const updated = liked.includes(eventId) ? liked.filter(id => id !== eventId) : [...liked, eventId]
     set({ likedEvents: updated })
-    await AsyncStorage.setItem('rede:liked', JSON.stringify(updated))
+    await AsyncStorage.setItem(LIKED_KEY, JSON.stringify(updated))
   },
 
   loadLiked: async () => {
-    const saved = await AsyncStorage.getItem('rede:liked')
+    const saved = await AsyncStorage.getItem(LIKED_KEY)
     if (saved) set({ likedEvents: JSON.parse(saved) })
   },
 
-  isLiked: (eventId) => get().likedEvents.includes(eventId),
-  // Load more events (pagination) — called when user scrolls near bottom
   loadMore: async () => {
     const { events, userLocation } = get()
-    const loc    = userLocation || { lat: 0.3476, lng: 32.5825 }
-    const offset = events.length
+    const loc    = userLocation || { lat: DEFAULT_CITY.lat, lng: DEFAULT_CITY.lng }
     try {
-      const data = await require('../services/api').eventsApi.list({
-        lat: loc.lat, lng: loc.lng, radius: 100, limit: 10, offset,
-      })
+      const data = await eventsApi.list({ lat: loc.lat, lng: loc.lng, radius: 100, limit: 10, offset: events.length })
       if (data.events?.length > 0) {
-        // Merge without duplicates
-        const ids     = new Set(events.map(e => e.id))
-        const newOnes = data.events.filter(e => !ids.has(e.id))
+        const now    = new Date()
+        const future = data.events.filter(e => new Date(e.endTime) > now)
+        const ids    = new Set(events.map(e => e.id))
+        const newOnes = future.filter(e => !ids.has(e.id))
         if (newOnes.length > 0) {
-          const merged = [...events, ...newOnes]
-          set({ events: merged })
+          set({ events: [...events, ...newOnes] })
           get()._buildFeed(loc.lat, loc.lng)
         }
       }
     } catch {}
   },
 
+  deleteEventLocal: (eventId) => {
+    set(state => ({ events: state.events.filter(e => e.id !== eventId) }))
+    const loc = get().userLocation || { lat: DEFAULT_CITY.lat, lng: DEFAULT_CITY.lng }
+    get()._buildFeed(loc.lat, loc.lng)
+  },
+
+  isLiked:     (id) => get().likedEvents.includes(id),
+  isAttending: (id) => get().attending.includes(id),
+  getEventById:(id) => get().events.find(e => e.id === id),
   setEventsLocal: (events) => set({ events }),
-  isAttending:    (id) => get().attending.includes(id),
-  getEventById:   (id) => get().events.find(e => e.id === id),
 }))
 
 export default useEventsStore
-
-// ── Liked events (persisted to AsyncStorage) ──────────────────

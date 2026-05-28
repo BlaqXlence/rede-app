@@ -1,8 +1,3 @@
-/**
- * authStore.js
- * Logout clears AsyncStorage AND resets state so NavigationContainer
- * switches to AuthNavigator immediately.
- */
 import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { authApi } from '../services/api'
@@ -21,35 +16,17 @@ const useAuthStore = create((set, get) => ({
         AsyncStorage.getItem(KEYS.TOKEN),
       ])
       if (userRaw && token) {
-        const user = JSON.parse(userRaw)
-        set({ user, isAuthenticated: true, isLoading: false })
-        // Silently refresh profile in background
+        set({ user: JSON.parse(userRaw), isAuthenticated: true, isLoading: false })
         authApi.getProfile()
-          .then(fresh => {
-            if (fresh.user) {
-              AsyncStorage.setItem(KEYS.USER, JSON.stringify(fresh.user))
-              set({ user: fresh.user })
-            }
-          })
-          .catch(err => {
-            // 401 = token expired — log out smoothly
-            if (err.message?.includes('401') || err.message?.toLowerCase().includes('token')) {
-              get().logout()
-            }
-          })
+          .then(d => { if (d.user) { AsyncStorage.setItem(KEYS.USER, JSON.stringify(d.user)); set({ user: d.user }) } })
+          .catch(err => { if (err.message?.includes('401') || err.message?.includes('token')) get().logout() })
       } else {
         set({ isLoading: false })
       }
-    } catch {
-      set({ isLoading: false })
-    }
+    } catch { set({ isLoading: false }) }
   },
 
-  sendOtp: async (phone) => {
-    const data = await authApi.sendOtp(phone)
-    if (data.dev_code) console.log(`\n📱 OTP: ${data.dev_code}\n`)
-    return data
-  },
+  sendOtp:  async (phone) => authApi.sendOtp(phone),
 
   verifyOtp: async (phone, code) => {
     const data = await authApi.verifyOtp(phone, code)
@@ -62,9 +39,7 @@ const useAuthStore = create((set, get) => ({
   saveProfile: async (profileData) => {
     try {
       const data = await authApi.updateProfile({
-        name:       profileData.name,
-        email:      profileData.email || null,
-        avatar_url: profileData.avatar || null,
+        name: profileData.name, email: profileData.email || null, avatar_url: profileData.avatar || null,
       })
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(data.user))
       set({ user: data.user, isAuthenticated: true })
@@ -82,13 +57,14 @@ const useAuthStore = create((set, get) => ({
     return { success: true }
   },
 
-  // Logout — clears everything and flips isAuthenticated to false
-  // This immediately triggers NavigationContainer to show AuthNavigator
+  // LOGOUT — clears ALL storage keys then resets state
   logout: async () => {
     try {
-      await AsyncStorage.multiRemove(Object.values(KEYS))
+      await AsyncStorage.multiRemove([
+        KEYS.USER, KEYS.TOKEN,
+        'rede:attending', 'rede:liked', 'rede:events:cache', 'rede:searches',
+      ])
     } catch {}
-    // Set state AFTER clearing storage
     set({ user: null, isAuthenticated: false, isLoading: false })
   },
 }))

@@ -12,7 +12,7 @@ import {
   StyleSheet, RefreshControl, Dimensions, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView }   from 'react-native-safe-area-context'
-import { Svg, Path, Circle, Line } from 'react-native-svg'
+import { Svg, Path, Circle } from 'react-native-svg'
 import useThemeStore      from '../../store/themeStore'
 import useEventsStore     from '../../store/eventsStore'
 import EventCard, { CARD_WIDTH_HORIZ } from '../../components/events/EventCard'
@@ -76,11 +76,10 @@ function SearchIcon({ color }) {
   )
 }
 function FilterIcon({ color }) {
+  // Standard funnel/filter icon used by Google Maps, Airbnb, Eventbrite etc
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Line x1="4"  y1="6"  x2="20" y2="6"  stroke={color} strokeWidth="2" strokeLinecap="round"/>
-      <Line x1="7"  y1="12" x2="17" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-      <Line x1="10" y1="18" x2="14" y2="18" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+      <Path d="M22 3H2l8 9.46V19l4 2V12.46L22 3z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   )
 }
