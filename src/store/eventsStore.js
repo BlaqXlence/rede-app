@@ -134,9 +134,12 @@ const useEventsStore = create((set, get) => ({
         ...response.event,
         location: { ...response.event.location, venueName: draft.location.venueName, area: draft.location.area },
       }
+      // Replace local placeholder with real DB event
       const updatedEvents = get().events.map(e => e.id === localEvent.id ? dbEvent : e)
       set({ events: updatedEvents })
       get()._buildFeed(loc.lat, loc.lng)
+      // Refresh full list from server so home feed is up to date
+      get()._fetchEvents(loc.lat, loc.lng).catch(() => {})
       return dbEvent
     } catch (err) {
       console.warn('DB save failed, removing local event:', err.message)
