@@ -139,8 +139,12 @@ const useEventsStore = create((set, get) => ({
       get()._buildFeed(loc.lat, loc.lng)
       return dbEvent
     } catch (err) {
-      console.warn('DB save failed, kept locally:', err.message)
-      return localEvent
+      console.warn('DB save failed, removing local event:', err.message)
+      // Remove the local placeholder — don't show broken events
+      const withoutLocal = get().events.filter(e => e.id !== localEvent.id)
+      set({ events: withoutLocal })
+      get()._buildFeed(loc.lat, loc.lng)
+      throw new Error('Could not save event. Check your connection and try again.')
     }
   },
 

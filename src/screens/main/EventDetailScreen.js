@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
-  StyleSheet, Alert, Linking, Dimensions, Platform, Share,
+  StyleSheet, Alert, Linking, Dimensions, Platform,
 } from 'react-native'
 import { SafeAreaView }    from 'react-native-safe-area-context'
 import { Svg, Path, Circle } from 'react-native-svg'
@@ -17,6 +17,7 @@ import Avatar              from '../../components/common/Avatar'
 import CommentSection      from '../../components/events/CommentSection'
 import ReviewSection       from '../../components/events/ReviewSection'
 import AttendeesSection    from '../../components/events/AttendeesSection'
+import ShareModal          from '../../components/common/ShareModal'
 import { formatDateRange, formatUGX, timeFromNow } from '../../utils/formatters'
 import { EVENT_CATEGORIES, APP_URL } from '../../constants/config'
 import { eventsApi } from '../../services/api'
@@ -42,6 +43,7 @@ export default function EventDetailScreen({ navigation, route }) {
   const { user }     = useAuthStore()
   const [activeTab, setActiveTab] = useState('Comments')
   const [deleting,  setDeleting]  = useState(false)
+  const [shareModal, setShareModal] = useState(false)
 
   const storeEvent = getEventById(eventId || fromParams?.id)
   const event      = storeEvent || fromParams
@@ -92,33 +94,8 @@ export default function EventDetailScreen({ navigation, route }) {
     }
   }
 
-  // Share button — works on web (clipboard) and native (WhatsApp + Share sheet)
-  async function handleShare() {
-    const link    = `${APP_URL}?event=${event.id}`
-    const message = `${event.title}\n📅 ${formatDateRange(event.startTime, event.endTime)}\n📍 ${event.location?.name || ''}\n\n${link}`
-
-    if (Platform.OS === 'web') {
-      // Try WhatsApp first, then clipboard
-      const encoded = encodeURIComponent(message)
-      const waUrl   = `https://wa.me/?text=${encoded}`
-      try {
-        window.open(waUrl, '_blank')
-      } catch {
-        if (navigator?.clipboard) {
-          navigator.clipboard.writeText(link)
-          Alert.alert('Link copied!', link)
-        }
-      }
-    } else {
-      // Native: try WhatsApp directly, fall back to system share sheet
-      const waUrl = `whatsapp://send?text=${encodeURIComponent(message)}`
-      const canWa = await Linking.canOpenURL(waUrl).catch(() => false)
-      if (canWa) {
-        Linking.openURL(waUrl)
-      } else {
-        Share.share({ message, url: link, title: event.title })
-      }
-    }
+  function handleShare() {
+    setShareModal(true)
   }
 
   function handleDelete() {
@@ -311,6 +288,9 @@ export default function EventDetailScreen({ navigation, route }) {
             </Text>
           </View>
         )}
+      </View>
+        {/* Share popup */}
+        <ShareModal visible={shareModal} onClose={() => setShareModal(false)} event={event} />
       </View>
     </SafeAreaView>
   )
