@@ -1,14 +1,14 @@
 /**
- * ProfileScreen.js
- * Clean profile with smooth scroll, proper tabs.
- * My Events | Attending | Liked | Settings
+ * ProfileScreen — TikTok-style layout
+ * Avatar + name + stats at top, tab bar, grid of cards below.
+ * Settings opens as a modal sheet.
  */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Alert, Platform, ActivityIndicator,
-  Switch, Modal, TouchableWithoutFeedback, TextInput,
-  Dimensions,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Alert, Platform, ActivityIndicator, Switch,
+  Modal, TouchableWithoutFeedback, TextInput,
+  Dimensions, FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore  from '../../store/themeStore'
@@ -20,18 +20,24 @@ import { uploadApi }  from '../../services/api'
 
 const { width } = Dimensions.get('window')
 const MAX_W     = Math.min(width, 500)
-const TABS      = ['My Events', 'Attending', 'Liked', 'Settings']
+const CARD_W    = (MAX_W - 3) / 3   // 3-column grid like TikTok
+
+const TABS = [
+  { key: 'my',       label: 'My Events' },
+  { key: 'attending', label: 'Attending' },
+  { key: 'liked',    label: 'Liked' },
+]
 
 export default function ProfileScreen({ navigation }) {
   const { colors, isDark, toggle: toggleTheme } = useThemeStore()
   const { user, logout, updateProfile }         = useAuthStore()
   const { events, attending, likedEvents, loadLiked } = useEventsStore()
 
-  const [activeTab,  setActiveTab]  = useState('My Events')
-  const [editModal,  setEditModal]  = useState(false)
-  const [editField,  setEditField]  = useState('')
-  const [editValue,  setEditValue]  = useState('')
-  const [saving,     setSaving]     = useState(false)
+  const [activeTab,   setActiveTab]   = useState('my')
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [editField,   setEditField]   = useState(null)  // 'name' | 'email' | null
+  const [editValue,   setEditValue]   = useState('')
+  const [saving,      setSaving]      = useState(false)
 
   useEffect(() => { loadLiked?.() }, [])
 
@@ -39,36 +45,22 @@ export default function ProfileScreen({ navigation }) {
   const attendingEvents = events.filter(e => (attending || []).includes(e.id))
   const likedList       = events.filter(e => (likedEvents || []).includes(e.id))
 
+  const tabData = {
+    my:        myEvents,
+    attending: attendingEvents,
+    liked:     likedList,
+  }
+
   function openEvent(e) { navigation.navigate('EventDetail', { eventId: e.id, event: e }) }
-
-  function startEdit(field) {
-    setEditField(field)
-    setEditValue(field === 'name' ? (user?.name || '') : (user?.email || ''))
-    setEditModal(true)
-  }
-
-  async function saveEdit() {
-    if (!editValue.trim()) return
-    setSaving(true)
-    try {
-      await updateProfile({ [editField]: editValue.trim() })
-      setEditModal(false)
-    } catch (err) {
-      Alert.alert('Could not save', err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
 
   async function pickPhoto() {
     if (Platform.OS === 'web') {
-      const input  = document.createElement('input')
-      input.type   = 'file'
+      const input = document.createElement('input')
+      input.type  = 'file'
       input.accept = 'image/*'
       input.onchange = async e => {
         const file = e.target.files?.[0]
         if (!file) return
-        if (file.size > 5 * 1024 * 1024) { Alert.alert('Too large', 'Max 5MB'); return }
         const reader = new FileReader()
         reader.onload = async () => {
           try {
@@ -81,189 +73,209 @@ export default function ProfileScreen({ navigation }) {
         reader.readAsDataURL(file)
       }
       input.click()
-    } else {
-      try {
-        const IP = require('expo-image-picker')
-        const { status } = await IP.requestMediaLibraryPermissionsAsync()
-        if (status !== 'granted') return
-        const r = await IP.launchImageLibraryAsync({
-          allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
-        })
-        if (!r.canceled) {
-          const b64 = `data:image/jpeg;base64,${r.assets[0].base64}`
-          try {
-            const res = await uploadApi.upload(b64)
-            await updateProfile({ avatar_url: res.url, avatar: res.url })
-          } catch {
-            await updateProfile({ avatar_url: r.assets[0].uri, avatar: r.assets[0].uri })
-          }
-        }
-      } catch (err) { Alert.alert('Error', err.message) }
+    }
+  }
+
+  async function saveEdit() {
+    if (!editValue.trim()) return
+    setSaving(true)
+    try {
+      await updateProfile({ [editField]: editValue.trim() })
+      setEditField(null)
+    } catch (err) {
+      Alert.alert('Could not save', err.message)
+    } finally {
+      setSaving(false)
     }
   }
 
   function handleSignOut() {
-    Alert.alert(
-      'Sign out?',
-      'You will need your phone number to sign back in.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out', style: 'destructive',
-          onPress: async () => {
-            try { await logout() }
-            catch (err) { Alert.alert('Error', err.message) }
-          },
-        },
-      ]
-    )
+    Alert.alert('Sign out?', '', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: async () => {
+        try { await logout() } catch {}
+      }},
+    ])
   }
+
+  const currentData = tabData[activeTab] || []
 
   if (!user) return null
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.phone, { maxWidth: MAX_W }]}>
-
-        {/* ── Profile card ─────────────────────────────── */}
-        <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={pickPhoto} activeOpacity={0.8} style={styles.avatarWrap}>
-            <Avatar uri={user.avatar} name={user.name || user.phone} size={72} />
-            <View style={[styles.cameraBadge, { backgroundColor: colors.primary }]}>
-              <Text style={{ fontSize: 10 }}>📷</Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.meta}>
-            <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
-                {user.name || 'Add your name'}
-              </Text>
-              <TouchableOpacity
-                style={[styles.editPill, { backgroundColor: colors.primaryFaint }]}
-                onPress={() => startEdit('name')}
-              >
-                <Text style={[styles.editPillTxt, { color: colors.primary }]}>Edit</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.phone, { color: colors.primary }]}>{user.phone}</Text>
-            <TouchableOpacity onPress={() => startEdit('email')}>
-              <Text style={[styles.email, { color: colors.textSecondary }]}>
-                {user.email || '+ Add email'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Stats row */}
-          <View style={[styles.statsRow, { backgroundColor: colors.surfaceHigh }]}>
-            <Stat label="Created"   value={myEvents.length}        colors={colors} />
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <Stat label="Attending" value={attendingEvents.length} colors={colors} />
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <Stat label="Liked"     value={likedList.length}       colors={colors} />
-          </View>
-        </View>
-
-        {/* ── Tab bar ──────────────────────────────────── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
-          contentContainerStyle={styles.tabBarInner}
-        >
-          {TABS.map(tab => (
-            <TouchableOpacity
-              key={tab}
-              style={[
-                styles.tab,
-                activeTab === tab && { borderBottomWidth: 2, borderBottomColor: colors.primary }
-              ]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text style={[
-                styles.tabTxt,
-                { color: activeTab === tab ? colors.primary : colors.textSecondary }
-              ]}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* ── Tab content ──────────────────────────────── */}
-        <ScrollView
+        <FlatList
+          data={currentData}
+          keyExtractor={e => e.id}
+          numColumns={2}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.tabContent}
-        >
-          {activeTab === 'My Events' && (
-            myEvents.length === 0
-              ? <Empty icon="🎭" title="No events yet" sub="Create your first event!" colors={colors}
-                  btnLabel="Create Event" onBtn={() => navigation.navigate('Create')} />
-              : <View style={styles.grid}>
-                  {myEvents.map(e => <EventCard key={e.id} event={e} onPress={openEvent} style={styles.gridCard} />)}
+          columnWrapperStyle={{ gap: 10, paddingHorizontal: 16 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
+
+          // Header = profile + tabs
+          ListHeaderComponent={() => (
+            <View>
+              {/* Top bar */}
+              <View style={styles.topBar}>
+                <Text style={[styles.topName, { color: colors.textPrimary }]}>
+                  {user.name || 'Profile'}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.settingsBtn, { backgroundColor: colors.surface }]}
+                  onPress={() => setSettingsOpen(true)}
+                >
+                  <Text style={{ fontSize: 18 }}>☰</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Avatar + stats row */}
+              <View style={styles.heroRow}>
+                {/* Avatar */}
+                <TouchableOpacity onPress={pickPhoto} style={styles.avatarWrap}>
+                  <Avatar uri={user.avatar} name={user.name || user.phone} size={80} />
+                  <View style={[styles.photoBtn, { backgroundColor: colors.primary }]}>
+                    <Text style={{ fontSize: 10, color: '#fff' }}>+</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Stats */}
+                <View style={styles.statsRow}>
+                  <StatBox value={myEvents.length}        label="Events"    colors={colors} />
+                  <StatBox value={attendingEvents.length} label="Attending"  colors={colors} />
+                  <StatBox value={likedList.length}       label="Liked"      colors={colors} />
                 </View>
+              </View>
+
+              {/* Name + phone */}
+              <View style={styles.bioSection}>
+                <TouchableOpacity
+                  style={styles.nameRow}
+                  onPress={() => { setEditField('name'); setEditValue(user.name || '') }}
+                >
+                  <Text style={[styles.displayName, { color: colors.textPrimary }]}>
+                    {user.name || 'Add your name'}
+                  </Text>
+                  <Text style={[styles.editHint, { color: colors.textHint }]}>  ✎</Text>
+                </TouchableOpacity>
+                <Text style={[styles.phone, { color: colors.textSecondary }]}>{user.phone}</Text>
+                {user.email ? (
+                  <Text style={[styles.emailTxt, { color: colors.textHint }]}>{user.email}</Text>
+                ) : (
+                  <TouchableOpacity onPress={() => { setEditField('email'); setEditValue('') }}>
+                    <Text style={[styles.addEmail, { color: colors.primary }]}>+ Add email</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Tab bar */}
+              <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+                {TABS.map(tab => (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[
+                      styles.tab,
+                      activeTab === tab.key && { borderBottomWidth: 2, borderBottomColor: colors.primary }
+                    ]}
+                    onPress={() => setActiveTab(tab.key)}
+                  >
+                    <Text style={[
+                      styles.tabTxt,
+                      { color: activeTab === tab.key ? colors.primary : colors.textSecondary }
+                    ]}>
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Padding before grid */}
+              <View style={{ height: 12 }} />
+            </View>
           )}
 
-          {activeTab === 'Attending' && (
-            attendingEvents.length === 0
-              ? <Empty icon="🎟️" title="Not attending anything" sub="Find an event and join it!" colors={colors}
-                  btnLabel="Explore" onBtn={() => navigation.navigate('Home')} />
-              : <View style={styles.grid}>
-                  {attendingEvents.map(e => <EventCard key={e.id} event={e} onPress={openEvent} style={styles.gridCard} />)}
-                </View>
+          // Empty state
+          ListEmptyComponent={() => (
+            <View style={styles.empty}>
+              <Text style={{ fontSize: 44 }}>
+                {activeTab === 'my' ? '🎭' : activeTab === 'attending' ? '🎟️' : '🤍'}
+              </Text>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                {activeTab === 'my' ? 'No events yet'
+                  : activeTab === 'attending' ? 'Not attending anything'
+                  : 'No liked events'}
+              </Text>
+              <Text style={[styles.emptySub, { color: colors.textHint }]}>
+                {activeTab === 'my' ? 'Tap Create to post your first event'
+                  : activeTab === 'attending' ? 'Join an event to see it here'
+                  : 'Tap ♡ on any event card'}
+              </Text>
+              {activeTab !== 'liked' && (
+                <TouchableOpacity
+                  style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => navigation.navigate(activeTab === 'my' ? 'Create' : 'Home')}
+                >
+                  <Text style={styles.emptyBtnTxt}>
+                    {activeTab === 'my' ? 'Create Event' : 'Explore Events'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           )}
 
-          {activeTab === 'Liked' && (
-            likedList.length === 0
-              ? <Empty icon="🤍" title="No liked events" sub="Tap ♡ on any card to save it here" colors={colors} />
-              : <View style={styles.grid}>
-                  {likedList.map(e => <EventCard key={e.id} event={e} onPress={openEvent} style={styles.gridCard} />)}
-                </View>
+          renderItem={({ item, index }) => (
+            <View style={{ flex: 1 }}>
+              <EventCard event={item} onPress={openEvent} style={{ marginBottom: 10 }} />
+            </View>
           )}
+        />
 
-          {activeTab === 'Settings' && (
-            <View style={[styles.menuCard, { backgroundColor: colors.surface }]}>
-              {/* Theme toggle */}
-              <View style={[styles.menuRow, { borderBottomColor: colors.divider, borderBottomWidth: 1 }]}>
-                <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
+        {/* ── Settings sheet ─────────────────────────── */}
+        <Modal visible={settingsOpen} transparent animationType="slide">
+          <TouchableWithoutFeedback onPress={() => setSettingsOpen(false)}>
+            <View style={styles.overlay} />
+          </TouchableWithoutFeedback>
+          <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>Settings</Text>
+
+            <View style={styles.settingsGroup}>
+              {/* Theme */}
+              <View style={[styles.settingRow, { borderBottomColor: colors.divider, borderBottomWidth: 1 }]}>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
                   {isDark ? '🌙  Dark Mode' : '☀️  Light Mode'}
                 </Text>
                 <Switch
-                  value={isDark}
-                  onValueChange={toggleTheme}
+                  value={isDark} onValueChange={toggleTheme}
                   trackColor={{ false: colors.border, true: colors.primary + '66' }}
                   thumbColor={isDark ? colors.primary : '#f4f3f4'}
                 />
               </View>
 
-              <MenuItem label="Edit Name"     onPress={() => startEdit('name')}  colors={colors} />
-              <MenuItem label="Edit Email"    onPress={() => startEdit('email')} colors={colors} value={user.email || ''} />
-              <MenuItem label="Change Photo"  onPress={pickPhoto}                colors={colors} />
-              <MenuItem label="Help & Support" onPress={() => {}}                colors={colors} />
-              <MenuItem label="Sign Out"      onPress={handleSignOut}            colors={colors} danger last />
+              <SettingItem label="Edit Name"    onPress={() => { setSettingsOpen(false); setTimeout(() => { setEditField('name');  setEditValue(user.name || '') }, 300) }} colors={colors} />
+              <SettingItem label="Edit Email"   onPress={() => { setSettingsOpen(false); setTimeout(() => { setEditField('email'); setEditValue(user.email || '') }, 300) }} colors={colors} />
+              <SettingItem label="Change Photo" onPress={() => { setSettingsOpen(false); setTimeout(pickPhoto, 300) }} colors={colors} />
+              <SettingItem label="Help & Support" onPress={() => {}} colors={colors} />
+              <SettingItem label="Sign Out" onPress={() => { setSettingsOpen(false); setTimeout(handleSignOut, 300) }} colors={colors} danger last />
             </View>
-          )}
+          </View>
+        </Modal>
 
-          <View style={{ height: 24 }} />
-        </ScrollView>
-
-        {/* ── Edit modal ───────────────────────────────── */}
-        <Modal visible={editModal} transparent animationType="slide">
-          <TouchableWithoutFeedback onPress={() => setEditModal(false)}>
-            <View style={styles.modalOverlay} />
+        {/* ── Edit name/email sheet ──────────────────── */}
+        <Modal visible={!!editField} transparent animationType="slide">
+          <TouchableWithoutFeedback onPress={() => setEditField(null)}>
+            <View style={styles.overlay} />
           </TouchableWithoutFeedback>
-
-          <View style={[styles.editSheet, { backgroundColor: colors.surface }]}>
-            <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.editTitle, { color: colors.textPrimary }]}>
+          <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>
               {editField === 'name' ? 'Edit Name' : 'Edit Email'}
             </Text>
             {editField === 'name' && (
               <Text style={[styles.editNote, { color: colors.textHint }]}>
-                Name can only be changed once every 7 days.
+                Names can only be changed once every 7 days.
               </Text>
             )}
-
             {Platform.OS === 'web' ? (
               <input
                 value={editValue}
@@ -296,11 +308,9 @@ export default function ProfileScreen({ navigation }) {
                 underlineColorAndroid="transparent"
               />
             )}
-
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.5 : 1 }]}
-              onPress={saveEdit}
-              disabled={saving}
+              onPress={saveEdit} disabled={saving}
             >
               {saving
                 ? <ActivityIndicator color="#fff" />
@@ -314,135 +324,105 @@ export default function ProfileScreen({ navigation }) {
   )
 }
 
-function Stat({ label, value, colors }) {
+function StatBox({ value, label, colors }) {
   return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 20, fontWeight: '900', color: colors.primary }}>{value}</Text>
-      <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{label}</Text>
+    <View style={styles.statBox}>
+      <Text style={[styles.statNum, { color: colors.textPrimary }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
     </View>
   )
 }
 
-function MenuItem({ label, value, onPress, danger, last, colors }) {
+function SettingItem({ label, onPress, danger, last, colors }) {
   return (
     <TouchableOpacity
-      style={[
-        styles.menuRow,
-        !last && { borderBottomColor: colors.divider, borderBottomWidth: 1 },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
+      style={[styles.settingRow, !last && { borderBottomColor: colors.divider, borderBottomWidth: 1 }]}
+      onPress={onPress} activeOpacity={0.7}
     >
-      <Text style={[styles.menuLabel, { color: danger ? colors.error : colors.textPrimary }]}>
+      <Text style={[styles.settingLabel, { color: danger ? colors.error : colors.textPrimary }]}>
         {label}
       </Text>
-      {value ? <Text style={[styles.menuValue, { color: colors.textSecondary }]}>{value}</Text> : null}
-      <Text style={[styles.menuChev, { color: danger ? colors.error : colors.textHint }]}>›</Text>
+      <Text style={[styles.settingChev, { color: danger ? colors.error : colors.textHint }]}>›</Text>
     </TouchableOpacity>
   )
 }
 
-function Empty({ icon, title, sub, colors, btnLabel, onBtn }) {
-  return (
-    <View style={styles.empty}>
-      <Text style={{ fontSize: 44 }}>{icon}</Text>
-      <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>{title}</Text>
-      <Text style={[styles.emptySub, { color: colors.textHint }]}>{sub}</Text>
-      {btnLabel && (
-        <TouchableOpacity
-          style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-          onPress={onBtn}
-        >
-          <Text style={styles.emptyBtnTxt}>{btnLabel}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
-  safe:    { flex: 1, alignItems: 'center' },
-  phone:   { flex: 1, width: '100%' },
+  safe:  { flex: 1, alignItems: 'center' },
+  phone: { flex: 1, width: '100%' },
 
-  // Profile card
-  profileCard: {
-    alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 0,
+  // Top bar
+  topBar: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4,
   },
-  avatarWrap:  { position: 'relative', marginBottom: 10 },
-  cameraBadge: {
+  topName:     { fontSize: 17, fontWeight: '800' },
+  settingsBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+
+  // Hero row — avatar left, stats right (TikTok style)
+  heroRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12, gap: 20,
+  },
+  avatarWrap: { position: 'relative' },
+  photoBtn: {
     position: 'absolute', bottom: 0, right: 0,
-    width: 22, height: 22, borderRadius: 11,
+    width: 20, height: 20, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
   },
-  meta: { alignItems: 'center', marginBottom: 14, width: '100%' },
-  nameRow: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: 8, marginBottom: 3,
-  },
-  name: { fontSize: 19, fontWeight: '800', flexShrink: 1 },
-  editPill: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
-  editPillTxt: { fontSize: 12, fontWeight: '700' },
-  phone: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
-  email: { fontSize: 13 },
+  statsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
+  statBox:  { alignItems: 'center' },
+  statNum:  { fontSize: 18, fontWeight: '900' },
+  statLabel:{ fontSize: 11, marginTop: 2 },
 
-  statsRow: {
-    flexDirection: 'row', borderRadius: 14,
-    paddingVertical: 14, paddingHorizontal: 20,
-    width: '100%', alignItems: 'center',
-    marginTop: 14, marginBottom: 0,
-  },
-  statDivider: { width: 1, height: 28 },
+  // Bio
+  bioSection: { paddingHorizontal: 16, paddingBottom: 14 },
+  nameRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
+  displayName:{ fontSize: 16, fontWeight: '700' },
+  editHint:   { fontSize: 14 },
+  phone:      { fontSize: 13, marginBottom: 2 },
+  emailTxt:   { fontSize: 12 },
+  addEmail:   { fontSize: 13, fontWeight: '600' },
 
   // Tabs
-  tabBar:      { borderBottomWidth: 1, marginTop: 6, flexGrow: 0 },
-  tabBarInner: { paddingHorizontal: 4 },
-  tab: {
-    paddingHorizontal: 18, paddingVertical: 13,
-    alignItems: 'center',
+  tabBar: {
+    flexDirection: 'row', borderBottomWidth: 1,
   },
+  tab:    { flex: 1, paddingVertical: 12, alignItems: 'center' },
   tabTxt: { fontSize: 13, fontWeight: '700' },
 
-  // Content
-  tabContent: { padding: 16, paddingBottom: 40 },
-  grid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  gridCard: { marginBottom: 0 },
-
-  // Empty state
-  empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
+  // Empty
+  empty: { alignItems: 'center', paddingVertical: 50, paddingHorizontal: 32, gap: 10, width: '100%' },
   emptyTitle: { fontSize: 17, fontWeight: '700' },
   emptySub:   { fontSize: 14, textAlign: 'center' },
-  emptyBtn:   { borderRadius: 10, paddingHorizontal: 22, paddingVertical: 11, marginTop: 6 },
-  emptyBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  emptyBtn:   { borderRadius: 10, paddingHorizontal: 22, paddingVertical: 11, marginTop: 4 },
+  emptyBtnTxt:{ color: '#fff', fontWeight: '700', fontSize: 14 },
 
-  // Settings
-  menuCard: { borderRadius: 14, overflow: 'hidden' },
-  menuRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 15,
-  },
-  menuLabel: { flex: 1, fontSize: 15 },
-  menuValue: { fontSize: 13, marginRight: 6 },
-  menuChev:  { fontSize: 20 },
-
-  // Edit modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
-  editSheet: {
+  // Modals
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
     padding: 22, paddingBottom: 44,
   },
-  sheetHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    alignSelf: 'center', marginBottom: 18,
+  handle:     { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 18 },
+  sheetTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
+
+  settingsGroup: { borderRadius: 14, overflow: 'hidden' },
+  settingRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 4, paddingVertical: 15,
   },
-  editTitle: { fontSize: 18, fontWeight: '800', marginBottom: 6 },
-  editNote:  { fontSize: 12, marginBottom: 14 },
+  settingLabel: { flex: 1, fontSize: 15 },
+  settingChev:  { fontSize: 20 },
+
+  editNote:   { fontSize: 12, marginBottom: 14 },
   editInput: {
     borderWidth: 1.5, borderRadius: 12,
     paddingHorizontal: 16, paddingVertical: 14,
     fontSize: 16, marginBottom: 16,
   },
-  saveBtn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+  saveBtn:    { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
   saveBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
 })
