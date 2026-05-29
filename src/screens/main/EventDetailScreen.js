@@ -45,6 +45,7 @@ export default function EventDetailScreen({ navigation, route }) {
   const [activeTab,  setActiveTab]  = useState('Comments')
   const [deleting,   setDeleting]   = useState(false)
   const [shareModal, setShareModal] = useState(false)
+  const [justJoined, setJustJoined] = useState(false)
 
   const storeEvent = getEventById(eventId || fromParams?.id)
   const event      = storeEvent || fromParams
@@ -92,7 +93,10 @@ export default function EventDetailScreen({ navigation, route }) {
       ])
     } else {
       joinEvent(event.id)
-        .then(() => Alert.alert("You're in! 🎉", `See you at ${event.title}`))
+        .then(() => {
+          setJustJoined(true)  // immediately unlock comment box
+          Alert.alert("You're in! 🎉", `See you at ${event.title}`)
+        })
         .catch(err => Alert.alert('Could not join', err.message))
     }
   }
@@ -244,7 +248,7 @@ export default function EventDetailScreen({ navigation, route }) {
               ))}
             </View>
 
-            {activeTab === 'Comments'  && <CommentSection   eventId={event.id} isOrganizer={isOrganizer} />}
+            {activeTab === 'Comments'  && <CommentSection   eventId={event.id} isOrganizer={isOrganizer} justJoined={justJoined} />}
             {activeTab === 'Attendees' && <AttendeesSection eventId={event.id} attendeeCount={event.attendeeCount} />}
           </View>
         </ScrollView>
@@ -312,8 +316,8 @@ const s = StyleSheet.create({
   backTxt: { fontSize: 15, fontWeight: '600' },
   coverWrap: { position: 'relative' },
   cover:     { width: '100%', height: 270 },
-  backBtn:   { position: 'absolute', top: 48, left: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  shareBtn:  { position: 'absolute', top: 48, right: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  backBtn:   { position: 'absolute', top: 48, left: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' },
+  shareBtn:  { position: 'absolute', top: 48, right: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' },
   myBadge:   { position: 'absolute', bottom: 12, left: 12, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
   myBadgeTxt:{ color: '#fff', fontSize: 12, fontWeight: '800' },
   liveBadge: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 4, gap: 5 },

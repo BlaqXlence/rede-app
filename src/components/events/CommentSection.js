@@ -1,19 +1,27 @@
 /**
  * CommentSection.js
- * - Server-side check for can-comment (fixes attendees not being able to comment)
- * - WhatsApp-style bubbles, latest at bottom
- * - Delete own comment
- * - Organizer always can comment
+ *
+ * Smooth, fast comment experience:
+ * 1. Loads cached comments from AsyncStorage instantly (<50ms)
+ * 2. Fetches fresh from server in background (~3-8s on 2G)
+ * 3. Auto-refreshes every 8 seconds while screen is open
+ * 4. canComment is set optimistically after joining — no extra round trip
+ * 5. New comment appears instantly (optimistic) before server confirms
+ * 6. WhatsApp-style bubbles, scrolls to bottom on open
  */
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, Alert, ActivityIndicator, Platform,
 } from 'react-native'
-import useThemeStore  from '../../store/themeStore'
-import useAuthStore   from '../../store/authStore'
-import Avatar         from '../common/Avatar'
+import AsyncStorage  from '@react-native-async-storage/async-storage'
+import useThemeStore from '../../store/themeStore'
+import useAuthStore  from '../../store/authStore'
+import useEventsStore from '../../store/eventsStore'
+import Avatar        from '../common/Avatar'
 import { commentsApi } from '../../services/api'
+
+const REFRESH_MS = 8000  // refresh every 8 seconds
 
 function timeAgo(d) {
   const s = (Date.now() - new Date(d)) / 1000
@@ -23,149 +31,235 @@ function timeAgo(d) {
   return `${Math.floor(s/86400)}d`
 }
 
-export default function CommentSection({ eventId, isOrganizer }) {
-  const { colors }  = useThemeStore()
-  const { user }    = useAuthStore()
-  const [comments, setComments]   = useState([])
-  const [text, setText]           = useState('')
-  const [loading, setLoading]     = useState(true)
-  const [sending, setSending]     = useState(false)
-  const [canComment, setCanComment] = useState(false)
-  const scrollRef = useRef(null)
+function cacheKey(id) { return `rede:comments:${id}` }
+
+export default function CommentSection({ eventId, isOrganizer, justJoined }) {
+  const { colors }      = useThemeStore()
+  const { user }        = useAuthStore()
+  const { isAttending } = useEventsStore()
+
+  const [comments,    setComments]    = useState([])
+  const [text,        setText]        = useState('')
+  const [initialLoad, setInitialLoad] = useState(true)
+  const [sending,     setSending]     = useState(false)
+
+  // canComment:
+  // - true immediately if user is organiser
+  // - true immediately if user is already in attending list (persistent store)
+  // - true immediately if justJoined prop is set (optimistic after join)
+  // - else: check server
+  const alreadyAttending = isAttending(eventId)
+  const [canComment, setCanComment] = useState(
+    isOrganizer || alreadyAttending || justJoined || false
+  )
+
+  const scrollRef  = useRef(null)
+  const intervalRef = useRef(null)
+  const mounted    = useRef(true)
 
   useEffect(() => {
-    loadComments()
-    checkCanComment()
-    const iv = setInterval(loadComments, 30000)
-    return () => clearInterval(iv)
-  }, [eventId])
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
-  async function loadComments() {
+  // Update canComment if justJoined or attending changes
+  useEffect(() => {
+    if (isOrganizer || alreadyAttending || justJoined) {
+      setCanComment(true)
+    }
+  }, [isOrganizer, alreadyAttending, justJoined])
+
+  const fetchFresh = useCallback(async () => {
     try {
       const data = await commentsApi.get(eventId)
-      setComments(data.comments)
+      if (!mounted.current) return
+      const fresh = data.comments || []
+      setComments(fresh)
+      // Save to cache
+      AsyncStorage.setItem(cacheKey(eventId), JSON.stringify(fresh)).catch(() => {})
     } catch {}
-    finally { setLoading(false) }
-  }
+  }, [eventId])
 
-  async function checkCanComment() {
-    if (!user) { setCanComment(false); return }
-    if (isOrganizer) { setCanComment(true); return }
-    try {
-      // Server-side truth — fixes attendees not being able to comment
-      const res = await commentsApi.canComment(eventId)
-      setCanComment(res.canComment)
-    } catch {
-      setCanComment(false)
+  useEffect(() => {
+    let didMount = true
+
+    async function init() {
+      // Step 1: load cache instantly
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey(eventId))
+        if (cached && didMount) {
+          setComments(JSON.parse(cached))
+          setInitialLoad(false)
+        }
+      } catch {}
+
+      // Step 2: fetch fresh from server
+      await fetchFresh()
+      if (didMount) setInitialLoad(false)
+
+      // Step 3: if we don't know canComment yet, check server
+      if (!isOrganizer && !alreadyAttending && !justJoined && user) {
+        try {
+          const res = await commentsApi.canComment(eventId)
+          if (didMount) setCanComment(res.canComment)
+        } catch {}
+      }
+
+      // Step 4: auto-refresh every 8 seconds
+      intervalRef.current = setInterval(() => {
+        if (mounted.current) fetchFresh()
+      }, REFRESH_MS)
     }
-  }
+
+    init()
+
+    return () => {
+      didMount = false
+      clearInterval(intervalRef.current)
+    }
+  }, [eventId])
+
+  // Scroll to bottom when comments first load
+  useEffect(() => {
+    if (!initialLoad && comments.length > 0) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 80)
+    }
+  }, [initialLoad])
 
   async function handleSend() {
     if (!text.trim()) return
+    const body = text.trim()
+    setText('')
+
+    // Optimistic: show immediately with a temp id
+    const tempComment = {
+      id:           `temp-${Date.now()}`,
+      text:         body,
+      userId:       user?.id,
+      authorName:   user?.name || user?.nickname || 'You',
+      authorAvatar: user?.avatar,
+      createdAt:    new Date().toISOString(),
+      isTemp:       true,
+    }
+    setComments(prev => [...prev, tempComment])
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80)
+
     setSending(true)
     try {
-      const data = await commentsApi.post(eventId, text.trim())
-      setComments(prev => [...prev, data.comment])
-      setText('')
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
+      const data = await commentsApi.post(eventId, body)
+      // Replace temp with real
+      setComments(prev =>
+        prev.map(c => c.id === tempComment.id ? data.comment : c)
+      )
     } catch (err) {
+      // Remove temp on failure
+      setComments(prev => prev.filter(c => c.id !== tempComment.id))
+      setText(body)  // restore text
       Alert.alert('Could not post', err.message)
     } finally { setSending(false) }
   }
 
   async function handleDelete(commentId) {
-    Alert.alert('Delete?', '', [
+    Alert.alert('Delete comment?', '', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
-          try {
-            await commentsApi.delete(eventId, commentId)
-            setComments(prev => prev.filter(c => c.id !== commentId))
-          } catch (err) { Alert.alert('Error', err.message) }
+          setComments(prev => prev.filter(c => c.id !== commentId))
+          try { await commentsApi.delete(eventId, commentId) }
+          catch (err) { Alert.alert('Error', err.message); fetchFresh() }
         },
       },
     ])
   }
 
-  useEffect(() => {
-    if (comments.length > 0 && !loading)
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 50)
-  }, [loading])
-
   return (
-    <View style={styles.wrapper}>
-      {loading ? (
-        <ActivityIndicator size="small" color={colors.primary} />
+    <View style={st.wrapper}>
+
+      {/* Comments list */}
+      {initialLoad && comments.length === 0 ? (
+        <View style={st.loadingRow}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[st.loadingTxt, { color: colors.textHint }]}>Loading comments…</Text>
+        </View>
       ) : comments.length === 0 ? (
-        <Text style={[styles.empty, { color: colors.textHint }]}>
+        <Text style={[st.empty, { color: colors.textHint }]}>
           {canComment ? 'No comments yet. Start the conversation!' : 'No comments yet.'}
         </Text>
       ) : (
         <ScrollView
           ref={scrollRef}
-          style={{ maxHeight: 320 }}
+          style={{ maxHeight: 340 }}
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
         >
           {comments.map(c => {
             const isMe = user?.id === c.userId
             return (
-              <View key={c.id} style={[
-                styles.bubble,
-                isMe
-                  ? [styles.bubbleMe, { backgroundColor: colors.primary }]
-                  : [styles.bubbleOther, { backgroundColor: colors.surface }],
-              ]}>
+              <View
+                key={c.id}
+                style={[
+                  st.bubble,
+                  isMe ? [st.bubbleMe,    { backgroundColor: colors.primary }]
+                       : [st.bubbleOther, { backgroundColor: colors.surface }],
+                  c.isTemp && { opacity: 0.7 },
+                ]}
+              >
                 {!isMe && (
-                  <View style={styles.bubbleHeader}>
+                  <View style={st.bubbleHead}>
                     <Avatar uri={c.authorAvatar} name={c.authorName} size={18} />
-                    <Text style={[styles.authorName, { color: colors.primary }]}>
+                    <Text style={[st.author, { color: colors.primary }]}>
                       {c.authorName || 'Anonymous'}
                     </Text>
                   </View>
                 )}
-                <Text style={[styles.bubbleText, { color: isMe ? '#fff' : colors.textPrimary }]}>
+                <Text style={[st.bubbleTxt, { color: isMe ? '#fff' : colors.textPrimary }]}>
                   {c.text}
                 </Text>
-                <View style={styles.bubbleFooter}>
-                  <Text style={[styles.bubbleTime, { color: isMe ? 'rgba(255,255,255,0.6)' : colors.textHint }]}>
-                    {timeAgo(c.createdAt)}
+                <View style={st.bubbleFoot}>
+                  <Text style={[st.time, { color: isMe ? 'rgba(255,255,255,0.55)' : colors.textHint }]}>
+                    {c.isTemp ? 'Sending…' : timeAgo(c.createdAt)}
                   </Text>
-                  {isMe && (
-                    <TouchableOpacity onPress={() => handleDelete(c.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>Delete</Text>
+                  {isMe && !c.isTemp && (
+                    <TouchableOpacity
+                      onPress={() => handleDelete(c.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>Delete</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               </View>
             )
           })}
-          <View style={{ height: 8 }} />
+          <View style={{ height: 10 }} />
         </ScrollView>
       )}
 
+      {/* Input row */}
       {canComment ? (
-        <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+        <View style={[st.inputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Avatar uri={user?.avatar} name={user?.name} size={28} />
           {Platform.OS === 'web' ? (
             <input
               value={text}
               onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-              placeholder="Write a comment..."
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+              }}
+              placeholder="Write a comment…"
               maxLength={500}
               style={{
                 flex: 1, border: 'none', outline: 'none',
                 backgroundColor: 'transparent', color: colors.textPrimary,
-                fontSize: 14, fontFamily: 'inherit', padding: '0 8px', minWidth: 0,
+                fontSize: 14, fontFamily: 'inherit', padding: '0 10px', minWidth: 0,
               }}
             />
           ) : (
             <TextInput
-              style={[styles.input, { color: colors.textPrimary }]}
+              style={[st.input, { color: colors.textPrimary }]}
               value={text} onChangeText={setText}
-              placeholder="Write a comment..."
+              placeholder="Write a comment…"
               placeholderTextColor={colors.textHint}
               multiline maxLength={500}
               selectionColor={colors.primary}
@@ -173,16 +267,23 @@ export default function CommentSection({ eventId, isOrganizer }) {
             />
           )}
           <TouchableOpacity
-            style={[styles.sendBtn, { backgroundColor: colors.primary, opacity: (!text.trim() || sending) ? 0.4 : 1 }]}
-            onPress={handleSend} disabled={!text.trim() || sending}
+            style={[st.sendBtn, {
+              backgroundColor: colors.primary,
+              opacity: (!text.trim() || sending) ? 0.35 : 1,
+            }]}
+            onPress={handleSend}
+            disabled={!text.trim() || sending}
           >
-            {sending ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.sendBtnTxt}>↑</Text>}
+            {sending
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Text style={st.sendTxt}>↑</Text>
+            }
           </TouchableOpacity>
         </View>
       ) : (
-        <View style={[styles.lockedRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.lockedTxt, { color: colors.textHint }]}>
-            {!user ? 'Sign in and join to comment' : 'Join this event to comment'}
+        <View style={[st.locked, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[st.lockedTxt, { color: colors.textHint }]}>
+            {!user ? '🔒 Sign in and join to comment' : '🔒 Join this event to comment'}
           </Text>
         </View>
       )}
@@ -190,25 +291,31 @@ export default function CommentSection({ eventId, isOrganizer }) {
   )
 }
 
-const styles = StyleSheet.create({
-  wrapper: { marginBottom: 8 },
-  empty:   { fontSize: 13, marginBottom: 10 },
-  bubble:  { maxWidth: '82%', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 6 },
-  bubbleMe:    { alignSelf: 'flex-end', borderBottomRightRadius: 3 },
-  bubbleOther: { alignSelf: 'flex-start', borderBottomLeftRadius: 3 },
-  bubbleHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
-  authorName:   { fontSize: 11, fontWeight: '700' },
-  bubbleText:   { fontSize: 14, lineHeight: 19 },
-  bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 3 },
-  bubbleTime:   { fontSize: 10 },
+const st = StyleSheet.create({
+  wrapper:     { marginBottom: 8 },
+  loadingRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16 },
+  loadingTxt:  { fontSize: 13 },
+  empty:       { fontSize: 13, paddingVertical: 16, textAlign: 'center' },
+
+  bubble:      { maxWidth: '82%', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 6 },
+  bubbleMe:    { alignSelf: 'flex-end',   borderBottomRightRadius: 3 },
+  bubbleOther: { alignSelf: 'flex-start', borderBottomLeftRadius:  3 },
+  bubbleHead:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
+  author:      { fontSize: 11, fontWeight: '700' },
+  bubbleTxt:   { fontSize: 14, lineHeight: 19 },
+  bubbleFoot:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 3 },
+  time:        { fontSize: 10 },
+
   inputRow: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1.5, borderRadius: 24,
-    paddingLeft: 14, paddingRight: 6, paddingVertical: 6, gap: 8, marginTop: 10,
+    paddingLeft: 10, paddingRight: 6, paddingVertical: 6,
+    gap: 8, marginTop: 12,
   },
   input:    { flex: 1, fontSize: 14, maxHeight: 80, paddingVertical: 4 },
   sendBtn:  { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  sendBtnTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  lockedRow:  { borderWidth: 1.5, borderRadius: 12, padding: 12, marginTop: 8, alignItems: 'center' },
-  lockedTxt:  { fontSize: 13 },
+  sendTxt:  { color: '#fff', fontSize: 18, fontWeight: '800' },
+
+  locked:    { borderWidth: 1.5, borderRadius: 12, padding: 13, marginTop: 10, alignItems: 'center' },
+  lockedTxt: { fontSize: 13 },
 })

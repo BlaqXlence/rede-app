@@ -1,92 +1,102 @@
 /**
  * AttendeesSection.js
- * Shows who is going to an event.
- * Live count + avatar list.
+ * Loads cached attendees instantly, refreshes in background.
+ * Attendee count badge updates when user joins/leaves.
  */
-import React, { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native'
+import React, { useState, useEffect, useRef } from 'react'
+import {
+  View, Text, StyleSheet, ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native'
+import AsyncStorage  from '@react-native-async-storage/async-storage'
 import useThemeStore from '../../store/themeStore'
 import Avatar        from '../common/Avatar'
 import { eventsApi } from '../../services/api'
 
+function cacheKey(id) { return `rede:attendees:${id}` }
+
 export default function AttendeesSection({ eventId, attendeeCount }) {
-  const { colors }    = useThemeStore()
-  const [list, setList]     = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showAll, setShowAll] = useState(false)
+  const { colors }                  = useThemeStore()
+  const [attendees,  setAttendees]  = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const mounted = useRef(true)
 
-  useEffect(() => { load() }, [eventId])
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
-  async function load() {
-    try {
-      const data = await eventsApi.attendees(eventId)
-      setList(data.attendees || [])
-    } catch {}
-    finally { setLoading(false) }
+  useEffect(() => {
+    async function load() {
+      // Step 1: show cache instantly
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey(eventId))
+        if (cached && mounted.current) {
+          setAttendees(JSON.parse(cached))
+          setLoading(false)
+        }
+      } catch {}
+
+      // Step 2: fetch fresh
+      try {
+        const data = await eventsApi.getAttendees(eventId)
+        if (!mounted.current) return
+        const list = data.attendees || []
+        setAttendees(list)
+        setLoading(false)
+        AsyncStorage.setItem(cacheKey(eventId), JSON.stringify(list)).catch(() => {})
+      } catch {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [eventId])
+
+  if (loading && attendees.length === 0) {
+    return (
+      <View style={st.center}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    )
   }
 
-  const shown = showAll ? list : list.slice(0, 12)
-
-  if (loading) return <ActivityIndicator size="small" color={colors.primary} />
+  if (attendees.length === 0) {
+    return (
+      <Text style={[st.empty, { color: colors.textHint }]}>
+        No one has joined yet. Be the first! 🎉
+      </Text>
+    )
+  }
 
   return (
-    <View style={styles.wrapper}>
-      {/* Count header */}
-      <Text style={[styles.count, { color: colors.textPrimary }]}>
-        {attendeeCount > 0
-          ? `${attendeeCount} ${attendeeCount === 1 ? 'person' : 'people'} going`
-          : 'No one yet — be the first!'}
+    <View style={st.wrap}>
+      <Text style={[st.count, { color: colors.textSecondary }]}>
+        {attendeeCount || attendees.length} going
       </Text>
-
-      {/* Avatar grid */}
-      {list.length > 0 && (
-        <View style={styles.grid}>
-          {shown.map(a => (
-            <View key={a.id} style={styles.person}>
-              <Avatar uri={a.avatar} name={a.name} size={44} />
-              <Text style={[styles.personName, { color: colors.textSecondary }]} numberOfLines={1}>
-                {a.name?.split(' ')[0] || 'User'}
-              </Text>
-              {a.verified && (
-                <Text style={[styles.verified, { color: colors.primary }]}>✓</Text>
-              )}
-            </View>
-          ))}
-
-          {/* Show more */}
-          {list.length > 12 && !showAll && (
-            <TouchableOpacity style={styles.person} onPress={() => setShowAll(true)}>
-              <View style={[styles.moreCircle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.moreText, { color: colors.primary }]}>
-                  +{list.length - 12}
-                </Text>
-              </View>
-              <Text style={[styles.personName, { color: colors.textHint }]}>more</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
-      {list.length === 0 && (
-        <Text style={[styles.emptyTxt, { color: colors.textHint }]}>
-          Join this event and be the first!
-        </Text>
-      )}
+      <View style={st.grid}>
+        {attendees.map(a => (
+          <View key={a.id} style={st.person}>
+            <Avatar uri={a.avatar} name={a.name} size={44} />
+            <Text style={[st.name, { color: colors.textSecondary }]} numberOfLines={1}>
+              {a.name || 'Guest'}
+            </Text>
+            {a.verified && (
+              <Text style={[st.badge, { color: colors.primary }]}>✓</Text>
+            )}
+          </View>
+        ))}
+      </View>
     </View>
   )
 }
 
-const styles = StyleSheet.create({
-  wrapper: { marginBottom: 8 },
-  count:   { fontSize: 15, fontWeight: '700', marginBottom: 14 },
-  grid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  person:  { alignItems: 'center', width: 56 },
-  personName: { fontSize: 11, marginTop: 4, textAlign: 'center', width: 56 },
-  verified:   { fontSize: 10, marginTop: 1 },
-  moreCircle: {
-    width: 44, height: 44, borderRadius: 22,
-    borderWidth: 2, alignItems: 'center', justifyContent: 'center',
-  },
-  moreText:  { fontSize: 13, fontWeight: '700' },
-  emptyTxt:  { fontSize: 13 },
+const st = StyleSheet.create({
+  center: { paddingVertical: 20, alignItems: 'center' },
+  empty:  { fontSize: 13, paddingVertical: 16, textAlign: 'center' },
+  wrap:   { paddingVertical: 8 },
+  count:  { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 },
+  grid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  person: { alignItems: 'center', width: 60 },
+  name:   { fontSize: 11, marginTop: 5, textAlign: 'center', width: 60 },
+  badge:  { fontSize: 10, marginTop: 1 },
 })
