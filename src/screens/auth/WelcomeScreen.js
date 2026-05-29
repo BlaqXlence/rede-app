@@ -1,73 +1,105 @@
 /**
- * WelcomeScreen — minimal, clean, no gradients
- * Logo + name + tagline + button
+ * WelcomeScreen — logo centred, clean, no gradients
  */
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native'
+import {
+  View, Text, TouchableOpacity, StyleSheet,
+  Dimensions, Image, Platform,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore from '../../store/themeStore'
 
-const { width } = Dimensions.get('window')
+const { width, height } = Dimensions.get('window')
 const MAX_W = Math.min(width, 500)
 
 export default function WelcomeScreen({ navigation }) {
   const { colors } = useThemeStore()
+
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top','bottom']}>
       <View style={[s.phone, { maxWidth: MAX_W }]}>
 
-        {/* Logo + brand */}
-        <View style={s.logoWrap}>
-          <View style={[s.logoBox, { backgroundColor: colors.primary }]}>
-            <Text style={s.logoLetter}>R</Text>
+        {/* ── Logo centred — fills top half ── */}
+        <View style={s.logoSection}>
+          <View style={[s.logoWrap, { backgroundColor: colors.background }]}>
+            {Platform.OS === 'web' ? (
+              <img
+                src="/assets/logo.png"
+                alt="REDE"
+                style={{ width: 120, height: 120, objectFit: 'contain' }}
+                onError={e => { e.target.style.display = 'none' }}
+              />
+            ) : (
+              <Image
+                source={require('../../../assets/logo.png')}
+                style={s.logoImg}
+                resizeMode="contain"
+              />
+            )}
           </View>
           <Text style={[s.brand, { color: colors.textPrimary }]}>REDE</Text>
+          <Text style={[s.tagline, { color: colors.textSecondary }]}>
+            Your city. Your events.
+          </Text>
         </View>
 
-        {/* Tagline */}
-        <View style={s.middle}>
+        {/* ── Bottom section ── */}
+        <View style={s.bottom}>
           <Text style={[s.headline, { color: colors.textPrimary }]}>
-            Find your{'\n'}next event
+            Find what's happening{'\n'}near you in Uganda
           </Text>
           <Text style={[s.sub, { color: colors.textSecondary }]}>
-            Discover parties, sports, music and more happening around you in Uganda.
+            Parties, sports, music, food and more — all in one place.
           </Text>
-        </View>
 
-        {/* Actions */}
-        <View style={s.actions}>
           <TouchableOpacity
-            style={[s.primaryBtn, { backgroundColor: colors.primary }]}
+            style={[s.btn, { backgroundColor: colors.primary }]}
             onPress={() => navigation.navigate('Phone')}
             activeOpacity={0.87}
           >
-            <Text style={s.primaryBtnTxt}>Get started →</Text>
+            <Text style={s.btnTxt}>Get started →</Text>
           </TouchableOpacity>
 
           <Text style={[s.terms, { color: colors.textHint }]}>
             By continuing you agree to our Terms of Service
           </Text>
         </View>
+
       </View>
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  safe:     { flex: 1, alignItems: 'center' },
-  phone:    { flex: 1, width: '100%', paddingHorizontal: 28 },
+  safe:  { flex: 1, alignItems: 'center' },
+  phone: { flex: 1, width: '100%', paddingHorizontal: 28 },
 
-  logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 52 },
-  logoBox:  { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  logoLetter:{ color: '#fff', fontSize: 28, fontWeight: '900' },
-  brand:    { fontSize: 32, fontWeight: '900', letterSpacing: -1 },
+  // Logo takes upper 50% of screen
+  logoSection: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoWrap: {
+    width: 130, height: 130,
+    borderRadius: 32,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  logoImg: { width: 120, height: 120 },
+  brand:   { fontSize: 36, fontWeight: '900', letterSpacing: -1, marginBottom: 6 },
+  tagline: { fontSize: 15 },
 
-  middle:   { flex: 1, justifyContent: 'center' },
-  headline: { fontSize: 44, fontWeight: '900', lineHeight: 52, letterSpacing: -1.5, marginBottom: 20 },
-  sub:      { fontSize: 16, lineHeight: 24 },
-
-  actions:      { paddingBottom: 12 },
-  primaryBtn:   { borderRadius: 14, paddingVertical: 17, alignItems: 'center', marginBottom: 16 },
-  primaryBtnTxt:{ color: '#fff', fontSize: 17, fontWeight: '800' },
-  terms:        { textAlign: 'center', fontSize: 12, lineHeight: 18 },
+  // Text + button at bottom
+  bottom: { paddingBottom: 8 },
+  headline: {
+    fontSize: 26, fontWeight: '900',
+    lineHeight: 34, letterSpacing: -0.5,
+    marginBottom: 12,
+  },
+  sub:  { fontSize: 15, lineHeight: 22, marginBottom: 28 },
+  btn:  { borderRadius: 14, paddingVertical: 17, alignItems: 'center', marginBottom: 16 },
+  btnTxt: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  terms:  { textAlign: 'center', fontSize: 12, lineHeight: 18, paddingBottom: 8 },
 })
