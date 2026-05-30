@@ -6,7 +6,7 @@
  * Filter button opens sheet with categories + date + price.
  * No category row on the page — everything is in the filter sheet.
  */
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   View, Text, ScrollView, FlatList, TouchableOpacity,
   StyleSheet, RefreshControl, Dimensions, ActivityIndicator,
