@@ -77,7 +77,10 @@ export default function OtpScreen({ navigation, route }) {
     setLoading(true)
     try {
       const { isNewUser } = await verifyOtp(phone, code)
-      if (isNewUser) navigation.replace('ProfileSetup')
+      // Go to ProfileSetup if: new user, OR existing user without complete profile
+      const { user } = require('../../store/authStore').default.getState()
+      const needsSetup = isNewUser || !user?.profileComplete || !user?.nickname
+      if (needsSetup) navigation.replace('ProfileSetup')
       else navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })
     } catch {
       Alert.alert('Wrong code', 'Check the code and try again.')

@@ -12,7 +12,6 @@ import { EVENT_CATEGORIES } from '../../constants/config'
 
 const { width } = Dimensions.get('window')
 const MAX_W     = Math.min(width, 500)
-const AGES      = ['16–17','18–21','22–25','26–30','31–35','36–40','41–50','50+']
 const CATS      = EVENT_CATEGORIES.filter(c => c.id !== 'all')
 const MAX_INT   = 3
 
@@ -24,14 +23,13 @@ export default function SettingsScreen({ navigation }) {
   const [editField,  setEditField]  = useState(null)
   const [editValue,  setEditValue]  = useState('')
   const [saving,     setSaving]     = useState(false)
-  // Interests editor
   const [intModal,   setIntModal]   = useState(false)
   const [selInts,    setSelInts]    = useState(user?.interests || [])
-  // Age editor
-  const [ageModal,   setAgeModal]   = useState(false)
 
   function openEdit(field, current) {
-    setEditField(field); setEditValue(current || ''); setEditModal(true)
+    setEditField(field)
+    setEditValue(current || '')
+    setEditModal(true)
   }
 
   async function saveEdit() {
@@ -40,60 +38,55 @@ export default function SettingsScreen({ navigation }) {
     try {
       await updateProfile({ [editField]: editValue.trim() })
       setEditModal(false)
-    } catch (err) { Alert.alert('Could not save', err.message) }
-    finally { setSaving(false) }
+    } catch (err) {
+      Alert.alert('Could not save', err.message)
+    } finally { setSaving(false) }
   }
 
   async function saveInterests() {
     setSaving(true)
-    try { await updateProfile({ interests: selInts }); setIntModal(false) }
-    catch (err) { Alert.alert('Error', err.message) }
-    finally { setSaving(false) }
-  }
-
-  async function saveAge(a) {
-    try { await updateProfile({ age: AGES.indexOf(a) + 16 }) }
-    catch {}
-    setAgeModal(false)
+    try {
+      await updateProfile({ interests: selInts })
+      setIntModal(false)
+    } catch (err) {
+      Alert.alert('Error', err.message)
+    } finally { setSaving(false) }
   }
 
   async function pickPhoto() {
     if (Platform.OS !== 'web') return
     const input = document.createElement('input')
-    input.type = 'file'; input.accept = 'image/*'
+    input.type = 'file'
+    input.accept = 'image/*'
     input.onchange = async e => {
-      const file = e.target.files?.[0]; if (!file) return
+      const file = e.target.files?.[0]
+      if (!file) return
       const reader = new FileReader()
       reader.onload = async () => {
         try {
           const res = await uploadApi.upload(reader.result)
           await updateProfile({ avatar_url: res.url, avatar: res.url })
-        } catch { await updateProfile({ avatar_url: reader.result, avatar: reader.result }) }
+        } catch {
+          await updateProfile({ avatar_url: reader.result, avatar: reader.result })
+        }
       }
       reader.readAsDataURL(file)
     }
     input.click()
   }
 
-  async function handleSignOut() {
+  // SIGN OUT — simple and direct
+  function handleSignOut() {
     Alert.alert(
       'Sign out?',
-      'You can sign back in with your phone number.',
+      'You can sign back in with your phone number anytime.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Sign Out',
           style: 'destructive',
           onPress: () => {
-            // Use setTimeout so Alert closes first, then logout fires
-            setTimeout(async () => {
-              try {
-                await logout()
-                // State change triggers NavigationContainer to show AuthNavigator
-              } catch (err) {
-                Alert.alert('Error signing out', err.message)
-              }
-            }, 100)
+            logout()  // triggers isAuthenticated=false → NavigationContainer switches to Auth
           },
         },
       ]
@@ -129,18 +122,14 @@ export default function SettingsScreen({ navigation }) {
 
           <Text style={[s.sectionLabel, { color: colors.textHint }]}>IDENTITY</Text>
           <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <Row label="Nickname"   value={user?.nickname || user?.name || '—'} onPress={() => openEdit('nickname', user?.nickname || user?.name)} colors={colors} />
-            <Row label="First Name" value={user?.firstName || '—'} onPress={() => openEdit('first_name', user?.firstName)} colors={colors} />
-            <Row label="Last Name"  value={user?.lastName  || '—'} onPress={() => openEdit('last_name',  user?.lastName)}  colors={colors} />
+            <Row label="Nickname"   value={user?.nickname || '—'}   onPress={() => openEdit('nickname',   user?.nickname)}   colors={colors} />
+            <Row label="First Name" value={user?.firstName || '—'}  onPress={() => openEdit('first_name', user?.firstName)}  colors={colors} />
+            <Row label="Last Name"  value={user?.lastName  || '—'}  onPress={() => openEdit('last_name',  user?.lastName)}   colors={colors} />
             <Row label="Email"      value={user?.email     || 'Not set'} onPress={() => openEdit('email', user?.email)} colors={colors} last />
           </View>
 
           <Text style={[s.sectionLabel, { color: colors.textHint }]}>PREFERENCES</Text>
           <View style={[s.card, { backgroundColor: colors.surface }]}>
-            <Row label="Age Group"
-              value={AGES[user?.age - 16] || '—'}
-              onPress={() => setAgeModal(true)}
-              colors={colors} />
             <Row label="Interests"
               value={user?.interests?.length > 0
                 ? user.interests.map(i => EVENT_CATEGORIES.find(c => c.id === i)?.label).filter(Boolean).join(', ')
@@ -153,14 +142,16 @@ export default function SettingsScreen({ navigation }) {
           <View style={[s.card, { backgroundColor: colors.surface }]}>
             <Row label="Change Photo" onPress={pickPhoto} colors={colors} />
             <View style={[s.row, s.lastRow]}>
-              <Text style={[s.rowLabel, { color: colors.textPrimary }]}>Phone Number</Text>
+              <Text style={[s.rowLabel, { color: colors.textPrimary }]}>Phone</Text>
               <Text style={[s.rowValue, { color: colors.success }]}>{user?.phone} ✓</Text>
             </View>
           </View>
 
+          {/* Sign out — large, clear, red */}
           <TouchableOpacity
             style={[s.signOutBtn, { backgroundColor: colors.error + '12', borderColor: colors.error }]}
-            onPress={handleSignOut} activeOpacity={0.8}
+            onPress={handleSignOut}
+            activeOpacity={0.8}
           >
             <Text style={[s.signOutTxt, { color: colors.error }]}>Sign Out</Text>
           </TouchableOpacity>
@@ -168,7 +159,7 @@ export default function SettingsScreen({ navigation }) {
           <Text style={[s.version, { color: colors.textHint }]}>REDE v1.0 · Uganda</Text>
         </ScrollView>
 
-        {/* Edit text modal */}
+        {/* Edit modal */}
         <Modal visible={editModal} transparent animationType="slide">
           <TouchableWithoutFeedback onPress={() => setEditModal(false)}>
             <View style={s.overlay} />
@@ -176,72 +167,30 @@ export default function SettingsScreen({ navigation }) {
           <View style={[s.sheet, { backgroundColor: colors.surface }]}>
             <View style={[s.handle, { backgroundColor: colors.border }]} />
             <Text style={[s.sheetTitle, { color: colors.textPrimary }]}>
-              {{
-                nickname:   'Edit Nickname',
-                first_name: 'Edit First Name',
-                last_name:  'Edit Last Name',
-                email:      'Edit Email',
-              }[editField] || 'Edit'}
+              {{ nickname: 'Edit Nickname', first_name: 'Edit First Name', last_name: 'Edit Last Name', email: 'Edit Email' }[editField] || 'Edit'}
             </Text>
             {editField === 'nickname' && (
               <Text style={[s.sheetNote, { color: colors.textHint }]}>
-                Nicknames can only be changed once every 7 days.
+                Must be unique. Changed once per 7 days.
               </Text>
             )}
             {Platform.OS === 'web' ? (
               <input value={editValue} onChange={e => setEditValue(e.target.value)} autoFocus
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  backgroundColor: colors.surfaceHigh, color: colors.textPrimary,
-                  border: `1.5px solid ${colors.border}`, borderRadius: 12,
-                  padding: '14px 16px', fontSize: 16, fontFamily: 'inherit',
-                  outline: 'none', marginBottom: 16,
-                }}
+                style={{ width: '100%', boxSizing: 'border-box', backgroundColor: colors.surfaceHigh,
+                  color: colors.textPrimary, border: `1.5px solid ${colors.border}`, borderRadius: 12,
+                  padding: '14px 16px', fontSize: 16, fontFamily: 'inherit', outline: 'none', marginBottom: 16 }}
               />
             ) : (
-              <TextInput
-                style={[s.editInput, { backgroundColor: colors.surfaceHigh, borderColor: colors.border, color: colors.textPrimary }]}
+              <TextInput style={[s.editInput, { backgroundColor: colors.surfaceHigh, borderColor: colors.border, color: colors.textPrimary }]}
                 value={editValue} onChangeText={setEditValue}
                 autoCapitalize={editField === 'email' ? 'none' : 'words'}
                 keyboardType={editField === 'email' ? 'email-address' : 'default'}
-                autoFocus selectionColor={colors.primary} underlineColorAndroid="transparent"
-              />
+                autoFocus selectionColor={colors.primary} underlineColorAndroid="transparent" />
             )}
-            <TouchableOpacity
-              style={[s.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.5 : 1 }]}
-              onPress={saveEdit} disabled={saving}
-            >
+            <TouchableOpacity style={[s.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.5 : 1 }]}
+              onPress={saveEdit} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveTxt}>Save</Text>}
             </TouchableOpacity>
-          </View>
-        </Modal>
-
-        {/* Age modal */}
-        <Modal visible={ageModal} transparent animationType="slide">
-          <TouchableWithoutFeedback onPress={() => setAgeModal(false)}>
-            <View style={s.overlay} />
-          </TouchableWithoutFeedback>
-          <View style={[s.sheet, { backgroundColor: colors.surface }]}>
-            <View style={[s.handle, { backgroundColor: colors.border }]} />
-            <Text style={[s.sheetTitle, { color: colors.textPrimary }]}>Age Group</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
-              {AGES.map(a => {
-                const active = AGES[user?.age - 16] === a
-                return (
-                  <TouchableOpacity
-                    key={a}
-                    style={{ borderRadius: 10, borderWidth: 1.5, paddingHorizontal: 18, paddingVertical: 11,
-                      backgroundColor: active ? colors.primary : colors.surfaceHigh,
-                      borderColor: active ? colors.primary : colors.border }}
-                    onPress={() => saveAge(a)}
-                  >
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: active ? '#fff' : colors.textPrimary }}>
-                      {a}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
           </View>
         </Modal>
 
@@ -261,18 +210,11 @@ export default function SettingsScreen({ navigation }) {
                 const accent = colors.cat[cat.id] || colors.primary
                 const full   = !active && selInts.length >= MAX_INT
                 return (
-                  <TouchableOpacity
-                    key={cat.id}
+                  <TouchableOpacity key={cat.id} disabled={full}
                     style={{ borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 9,
                       backgroundColor: active ? accent : colors.surfaceHigh,
-                      borderColor: active ? accent : colors.border,
-                      opacity: full ? 0.35 : 1 }}
-                    onPress={() => {
-                      if (full) return
-                      setSelInts(prev => active ? prev.filter(x => x !== cat.id) : [...prev, cat.id])
-                    }}
-                    disabled={full}
-                  >
+                      borderColor: active ? accent : colors.border, opacity: full ? 0.35 : 1 }}
+                    onPress={() => setSelInts(p => active ? p.filter(x => x !== cat.id) : [...p, cat.id])}>
                     <Text style={{ fontSize: 13, fontWeight: '600', color: active ? '#fff' : colors.textSecondary }}>
                       {cat.label}
                     </Text>
@@ -280,10 +222,8 @@ export default function SettingsScreen({ navigation }) {
                 )
               })}
             </View>
-            <TouchableOpacity
-              style={[s.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.5 : 1 }]}
-              onPress={saveInterests} disabled={saving}
-            >
+            <TouchableOpacity style={[s.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.5 : 1 }]}
+              onPress={saveInterests} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveTxt}>Save Interests</Text>}
             </TouchableOpacity>
           </View>
@@ -320,8 +260,8 @@ const s = StyleSheet.create({
   rowLabel:{ flex: 1, fontSize: 15 },
   rowValue:{ fontSize: 13, marginRight: 8, maxWidth: '45%' },
   rowChev: { fontSize: 20 },
-  signOutBtn: { marginTop: 24, borderRadius: 12, borderWidth: 1.5, paddingVertical: 14, alignItems: 'center' },
-  signOutTxt: { fontSize: 15, fontWeight: '700' },
+  signOutBtn: { marginTop: 24, borderRadius: 12, borderWidth: 1.5, paddingVertical: 16, alignItems: 'center' },
+  signOutTxt: { fontSize: 16, fontWeight: '800' },
   version: { textAlign: 'center', fontSize: 12, marginTop: 24 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet:   { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 22, paddingBottom: 44 },
