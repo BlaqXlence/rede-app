@@ -162,6 +162,10 @@ export default function HomeScreen({ navigation }) {
 
   const hasFilter = filters.category !== 'all' || filters.when !== 'All time' || filters.price !== 'Any price'
 
+  // Sort sections by user interests — interest categories shown first
+  const { user } = require('../../store/authStore').default.getState()
+  const userInterests = user?.interests || []
+
   // Auto-refresh every 60 seconds while app is open
   // New events appear without user doing anything
   useEffect(() => {
@@ -323,7 +327,13 @@ export default function HomeScreen({ navigation }) {
                   </View>
                 )}
 
-                {HOME_SECTIONS.filter(sc => sc.categoryId !== null).map(sc => (
+                {[...HOME_SECTIONS.filter(sc => sc.categoryId !== null)]
+                  .sort((a, b) => {
+                    const aMatch = userInterests.includes(a.categoryId) ? -1 : 0
+                    const bMatch = userInterests.includes(b.categoryId) ? -1 : 0
+                    return aMatch - bMatch
+                  })
+                  .map(sc => (
                   <Section
                     key={sc.id}
                     title={sc.title}

@@ -72,19 +72,16 @@ const useAuthStore = create((set, get) => ({
     return { success: true }
   },
 
-  // LOGOUT — guaranteed to work
+  // LOGOUT — guaranteed to work on web and native
   logout: async () => {
-    // 1. Clear storage
     try {
       await AsyncStorage.multiRemove(ALL_KEYS)
     } catch {}
-    // 2. Reset state — this MUST flip isAuthenticated to false
-    //    which triggers NavigationContainer to show AuthNavigator
-    set({
-      user:            null,
-      isAuthenticated: false,
-      isLoading:       false,
-    })
+    set({ user: null, isAuthenticated: false, isLoading: false })
+    // On web: force a full page reload so React state fully resets
+    if (typeof window !== 'undefined' && window.location) {
+      setTimeout(() => { window.location.href = '/' }, 100)
+    }
   },
 }))
 
