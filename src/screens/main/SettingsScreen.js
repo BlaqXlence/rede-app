@@ -75,13 +75,29 @@ export default function SettingsScreen({ navigation }) {
     input.click()
   }
 
-  function handleSignOut() {
-    Alert.alert('Sign out?', 'You can sign back in with your phone number.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: async () => {
-        try { await logout() } catch {}
-      }},
-    ])
+  async function handleSignOut() {
+    Alert.alert(
+      'Sign out?',
+      'You can sign back in with your phone number.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => {
+            // Use setTimeout so Alert closes first, then logout fires
+            setTimeout(async () => {
+              try {
+                await logout()
+                // State change triggers NavigationContainer to show AuthNavigator
+              } catch (err) {
+                Alert.alert('Error signing out', err.message)
+              }
+            }, 100)
+          },
+        },
+      ]
+    )
   }
 
   return (

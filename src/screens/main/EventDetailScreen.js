@@ -84,12 +84,22 @@ export default function EventDetailScreen({ navigation, route }) {
       ]); return
     }
     if (attending) {
-      Alert.alert('Leave event?', 'You will be removed from the attendees list.', [
+      const isPaid    = (event.entryFee || 0) > 0
+      const hoursLeft = (new Date(event.startTime) - Date.now()) / 3_600_000
+      const canLeave  = !isPaid || hoursLeft >= 3
+
+      const message = canLeave
+        ? 'You will be removed from the attendees list.'
+        : `Paid events can only be left 3+ hours before start.\n${Math.ceil(hoursLeft * 60)} minutes remaining — too late to leave.`
+
+      Alert.alert('Leave event?', message, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: async () => {
-          try { await leaveEvent(event.id) }
-          catch { Alert.alert('Error', 'Could not leave. Try again.') }
-        }},
+        ...(canLeave ? [{
+          text: 'Leave', style: 'destructive', onPress: async () => {
+            try { await leaveEvent(event.id) }
+            catch (err) { Alert.alert('Could not leave', err.message) }
+          }
+        }] : []),
       ])
     } else {
       joinEvent(event.id)

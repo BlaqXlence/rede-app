@@ -161,6 +161,15 @@ export default function HomeScreen({ navigation }) {
   const [filters,     setFilters]     = useState(DEFAULT_FILTERS)
 
   const hasFilter = filters.category !== 'all' || filters.when !== 'All time' || filters.price !== 'Any price'
+
+  // Auto-refresh every 60 seconds while app is open
+  // New events appear without user doing anything
+  useEffect(() => {
+    const interval = setInterval(() => {
+      requestLocation()
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [])
   const hasAnyFilter = hasFilter || currentCity.name !== 'All Uganda'
 
   async function refresh() {
