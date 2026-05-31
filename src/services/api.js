@@ -25,17 +25,26 @@ async function request(method, path, body) {
   return data
 }
 
+// Build query string without URLSearchParams (not reliable on all Android)
+function buildQuery(params = {}) {
+  return Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&')
+}
+
 export const authApi = {
   sendOtp:       (phone)       => request('POST', '/auth/otp/send', { phone }),
   verifyOtp:     (phone, code) => request('POST', '/auth/otp/verify', { phone, code }),
   updateProfile: (data)        => request('PUT',  '/auth/profile', data),
   getProfile:    ()            => request('GET',  '/auth/profile'),
-  getOrganizer:  (id)          => request('GET',  `/auth/organizer/${id}`),
+  getOrganizer:      (id) => request('GET',  `/auth/organizer/${id}`),
+  searchOrganisers:  (q)  => request('GET',  `/auth/search-organisers?q=${encodeURIComponent(q)}`),
 }
 
 export const eventsApi = {
-  list:      (params)   => request('GET',    `/events?${new URLSearchParams(params)}`),
-  listMore:  (params)   => request('GET',    `/events?${new URLSearchParams(params)}`),  // same but different name for clarity
+  list:      (params)   => request('GET',    `/events?${buildQuery(params)}`),
+  listMore:  (params)   => request('GET',    `/events?${buildQuery(params)}`),
   getById:   (id)       => request('GET',    `/events/${id}`),
   create:    (data)     => request('POST',   '/events', data),
   update:    (id, data) => request('PUT',    `/events/${id}`, data),
@@ -65,7 +74,7 @@ export const commentsApi = {
 
 export const searchApi = {
   search: (q, params = {}) =>
-    request('GET', `/search?q=${encodeURIComponent(q)}&${new URLSearchParams(params)}`),
+    request('GET', `/search?q=${encodeURIComponent(q)}&${buildQuery(params)}`),
 }
 
 export const uploadApi = {
