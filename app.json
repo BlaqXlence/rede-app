@@ -5,19 +5,21 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A1A1A"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "ug.rede.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "REDE needs your location to show events near you.",
-        "NSPhotoLibraryUsageDescription": "REDE needs access to your photos.",
-        "NSCameraUsageDescription": "REDE needs your camera for profile photos."
+        "NSPhotoLibraryUsageDescription": "REDE needs access to your photos to set your profile picture and event covers.",
+        "NSCameraUsageDescription": "REDE needs your camera for profile and event photos.",
+        "NSPhotoLibraryAddUsageDescription": "REDE needs to save photos."
       }
     },
     "android": {
@@ -26,11 +28,28 @@
         "backgroundColor": "#FF6600"
       },
       "package": "ug.rede.app",
+      "versionCode": 1,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "READ_EXTERNAL_STORAGE",
-        "CAMERA"
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "rede-app.netlify.app",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "web": {
@@ -38,9 +57,24 @@
       "bundler": "metro"
     },
     "plugins": [
-      ["expo-location", {
-        "locationWhenInUsePermission": "REDE needs your location to show events near you."
-      }]
-    ]
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "REDE needs your location to show events near you in Uganda."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "REDE needs access to your photos for profile and event images.",
+          "cameraPermission": "REDE needs your camera for photos."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_PROJECT_ID"
+      }
+    }
   }
 }
