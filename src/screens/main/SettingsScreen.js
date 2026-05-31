@@ -25,6 +25,7 @@ export default function SettingsScreen({ navigation }) {
   const [saving,     setSaving]     = useState(false)
   const [intModal,   setIntModal]   = useState(false)
   const [selInts,    setSelInts]    = useState(user?.interests || [])
+  const [ageModal,   setAgeModal]   = useState(false)
 
   function openEdit(field, current) {
     setEditField(field)
@@ -41,6 +42,15 @@ export default function SettingsScreen({ navigation }) {
     } catch (err) {
       Alert.alert('Could not save', err.message)
     } finally { setSaving(false) }
+  }
+
+  async function saveAge(birthday) {
+    try {
+      await updateProfile({ birthday })
+      setAgeModal(false)
+    } catch (err) {
+      Alert.alert('Could not save', err.message)
+    }
   }
 
   async function saveInterests() {
@@ -132,6 +142,12 @@ export default function SettingsScreen({ navigation }) {
 
           <Text style={[s.sectionLabel, { color: colors.textHint }]}>PREFERENCES</Text>
           <View style={[s.card, { backgroundColor: colors.surface }]}>
+            <Row label="Birthday / Age"
+              value={user?.birthday
+                ? (() => { const bd = new Date(user.birthday); const age = new Date().getFullYear() - bd.getFullYear(); return `${bd.toLocaleDateString('en-UG', { day:'numeric', month:'short', year:'numeric' })} · ${age} yrs` })()
+                : 'Not set'}
+              onPress={() => setAgeModal(true)}
+              colors={colors} />
             <Row label="Interests"
               value={user?.interests?.length > 0
                 ? user.interests.map(i => EVENT_CATEGORIES.find(c => c.id === i)?.label).filter(Boolean).join(', ')
@@ -193,6 +209,43 @@ export default function SettingsScreen({ navigation }) {
               onPress={saveEdit} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveTxt}>Save</Text>}
             </TouchableOpacity>
+          </View>
+        </Modal>
+
+        {/* Age / Birthday modal */}
+        <Modal visible={ageModal} transparent animationType="slide">
+          <TouchableWithoutFeedback onPress={() => setAgeModal(false)}>
+            <View style={s.overlay} />
+          </TouchableWithoutFeedback>
+          <View style={[s.sheet, { backgroundColor: colors.surface }]}>
+            <View style={[s.handle, { backgroundColor: colors.border }]} />
+            <Text style={[s.sheetTitle, { color: colors.textPrimary }]}>Birthday</Text>
+            <Text style={[s.sheetNote, { color: colors.textHint }]}>
+              Must be 18+ to create events. Only your age is shown publicly.
+            </Text>
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
+                max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
+                onChange={e => saveAge(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  backgroundColor: colors.surfaceHigh, color: colors.textPrimary,
+                  border: `1.5px solid ${colors.border}`, borderRadius: 12,
+                  padding: '14px 16px', fontSize: 16, fontFamily: 'inherit',
+                  outline: 'none', marginBottom: 16,
+                }}
+              />
+            ) : (
+              <TextInput
+                style={[s.editInput, { backgroundColor: colors.surfaceHigh, borderColor: colors.border, color: colors.textPrimary }]}
+                placeholder="YYYY-MM-DD e.g. 1995-06-15"
+                placeholderTextColor={colors.textHint}
+                onSubmitEditing={e => saveAge(e.nativeEvent.text)}
+                selectionColor={colors.primary}
+                underlineColorAndroid="transparent"
+              />
+            )}
           </View>
         </Modal>
 

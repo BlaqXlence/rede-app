@@ -54,12 +54,14 @@ export default function CreateEventScreen({ navigation }) {
   const [errors,   setErrors]   = useState({})
   const [posting,  setPosting]  = useState(false)
 
-  // Check profile name on mount — show gate modal if missing
+  // Gate: must have name + be 18+ to create events
   useEffect(() => {
-    if (user?.name && user.name.trim().length >= 2) {
-      setReady(true)
-    }
-    // else the gate modal shows
+    const hasName = user?.name && user.name.trim().length >= 2
+    const age     = user?.birthday
+      ? (() => { const bd = new Date(user.birthday); let a = new Date().getFullYear() - bd.getFullYear(); const m = new Date().getMonth() - bd.getMonth(); if (m < 0 || (m===0 && new Date().getDate() < bd.getDate())) a--; return a })()
+      : user?.age || null
+    const isAdult = !age || age >= 18  // if no age set, allow (they can set it in settings)
+    if (hasName && isAdult) setReady(true)
   }, [user])
 
   function setField(field, value) {
@@ -174,15 +176,16 @@ export default function CreateEventScreen({ navigation }) {
           <View style={styles.gateWrap}>
             <Text style={{ fontSize: 56, marginBottom: 20 }}>👤</Text>
             <Text style={[styles.gateTitle, { color: colors.textPrimary }]}>
-              Set up your profile first
+              Complete your profile first
             </Text>
             <Text style={[styles.gateSub, { color: colors.textSecondary }]}>
-              Before creating an event, people need to know who you are. Add your name to your profile so attendees can trust the event is legitimate.
+              To create events on REDE you need a verified name and must be 18 or older.
             </Text>
 
             <View style={[styles.gateChecklist, { backgroundColor: colors.surface }]}>
-              <GateItem done={!!(user?.name?.trim()?.length >= 2)} label="Add your name" colors={colors} />
-              <GateItem done={!!user?.verified}                    label="Verify your phone number" colors={colors} />
+              <GateItem done={!!(user?.name?.trim()?.length >= 2)} label="Add your name in Settings" colors={colors} />
+              <GateItem done={!!user?.verified}                    label="Phone number verified" colors={colors} />
+              <GateItem done={(() => { const age = user?.birthday ? (new Date().getFullYear() - new Date(user.birthday).getFullYear()) : user?.age; return age >= 18 })()} label="Must be 18+ years old" colors={colors} />
             </View>
 
             <TouchableOpacity

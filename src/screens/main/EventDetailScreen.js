@@ -150,21 +150,21 @@ export default function EventDetailScreen({ navigation, route }) {
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[s.phone, { maxWidth: MAX_W }]}>
+        {/* Back + Share always visible ABOVE scroll, never hidden */}
+        <View style={s.topNav}>
+          <TouchableOpacity style={[s.navBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
+            <Text style={[s.navBtnTxt, { color: colors.primary }]}>←</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[s.navBtn, { backgroundColor: colors.surface }]} onPress={() => setShareModal(true)}>
+            <ShareIcon color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+
         <ScrollView showsVerticalScrollIndicator={false}>
 
           {/* Cover photo */}
           <View style={s.coverWrap}>
             <Image source={{ uri: event.coverImage }} style={s.cover} resizeMode="cover" />
-
-            {/* Back — always orange, dark background for visibility */}
-            <TouchableOpacity style={s.floatBtn} onPress={() => navigation.goBack()}>
-              <Text style={s.floatArrow}>←</Text>
-            </TouchableOpacity>
-
-            {/* Share — always orange, dark background */}
-            <TouchableOpacity style={[s.floatBtn, { right: 16, left: undefined }]} onPress={() => setShareModal(true)}>
-              <ShareIcon color="#FF6600" />
-            </TouchableOpacity>
 
             {isOrganizer && (
               <View style={[s.myBadge, { backgroundColor: colors.primary }]}>
@@ -345,14 +345,16 @@ const s = StyleSheet.create({
   cover:     { width: '100%', height: 270 },
 
   // Floating buttons — white circle with orange icon/text, always visible
-  floatBtn: {
-    position: 'absolute', top: 48, left: 16,
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: 'rgba(255,102,0,0.6)',
+  topNav: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  floatArrow: { color: '#FF6600', fontSize: 22, fontWeight: '800' },
+  navBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  navBtnTxt: { fontSize: 22, fontWeight: '800' },
 
   myBadge:    { position: 'absolute', bottom: 12, left: 12, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
   myBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '800' },
