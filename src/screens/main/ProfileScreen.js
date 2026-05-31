@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, Platform, Dimensions, ScrollView,
+  StyleSheet, Dimensions, ScrollView, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Svg, Path } from 'react-native-svg'
@@ -69,21 +69,20 @@ export default function ProfileScreen({ navigation }) {
 
   function openEvent(e) { navigation.navigate('EventDetail', { eventId: e.id, event: e }) }
 
-  function pickPhoto() {
-    if (Platform.OS !== 'web') return
-    const inp = document.createElement('input')
-    inp.type  = 'file'; inp.accept = 'image/*'
-    inp.onchange = async ev => {
-      const file = ev.target.files?.[0]; if (!file) return
-      const reader = new FileReader()
-      reader.onload = async () => {
+  async function pickPhoto() {
+    const perm = await require('expo-image-picker').requestMediaLibraryPermissionsAsync()
+    if (!perm.granted) { Alert.alert('Permission needed', 'Allow photo access to change your picture.'); return }
+    const result = await require('expo-image-picker').launchImageLibraryAsync({
+      mediaTypes: require('expo-image-picker').MediaTypeOptions.Images,
+      allowsEditing: true, aspect: [1,1], quality: 0.8,
+    })
+    if (!result.canceled && result.assets[0]) {
+      try {
+        const res = await uploadApi.upload(result.assets[0].uri)
         const { updateProfile } = require('../../store/authStore').default.getState()
-        try { const r = await uploadApi.upload(reader.result); await updateProfile({ avatar_url: r.url, avatar: r.url }) }
-        catch { await updateProfile({ avatar_url: reader.result, avatar: reader.result }) }
-      }
-      reader.readAsDataURL(file)
+        await updateProfile({ avatar_url: res.url, avatar: res.url })
+      } catch {}
     }
-    inp.click()
   }
 
   // Header rendered above the grid

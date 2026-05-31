@@ -114,9 +114,7 @@ function AuthNavigator() {
 }
 
 function getEventIdFromUrl() {
-  if (Platform.OS !== 'web') return null
-  try { return new URLSearchParams(window.location.search).get('event') || null }
-  catch { return null }
+  return null // Deep links handled via Expo Linking on native
 }
 
 export default function RootNavigator() {

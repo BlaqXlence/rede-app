@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, Alert, ActivityIndicator, Platform,
+  StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native'
 import AsyncStorage  from '@react-native-async-storage/async-storage'
 import useThemeStore from '../../store/themeStore'
@@ -240,22 +240,6 @@ export default function CommentSection({ eventId, isOrganizer, justJoined }) {
       {canComment ? (
         <View style={[st.inputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
           <Avatar uri={user?.avatar} name={user?.name} size={28} />
-          {Platform.OS === 'web' ? (
-            <input
-              value={text}
-              onChange={e => setText(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-              }}
-              placeholder="Write a comment…"
-              maxLength={500}
-              style={{
-                flex: 1, border: 'none', outline: 'none',
-                backgroundColor: 'transparent', color: colors.textPrimary,
-                fontSize: 14, fontFamily: 'inherit', padding: '0 10px', minWidth: 0,
-              }}
-            />
-          ) : (
             <TextInput
               style={[st.input, { color: colors.textPrimary }]}
               value={text} onChangeText={setText}
@@ -264,8 +248,10 @@ export default function CommentSection({ eventId, isOrganizer, justJoined }) {
               multiline maxLength={500}
               selectionColor={colors.primary}
               underlineColorAndroid="transparent"
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
+              blurOnSubmit={false}
             />
-          )}
           <TouchableOpacity
             style={[st.sendBtn, {
               backgroundColor: colors.primary,
