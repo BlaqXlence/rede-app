@@ -77,11 +77,9 @@ const useAuthStore = create((set, get) => ({
     try {
       await AsyncStorage.multiRemove(ALL_KEYS)
     } catch {}
+    // Set state SYNCHRONOUSLY — zustand notifies all subscribers immediately
+    // NavigationContainer watches isAuthenticated and switches to AuthNavigator
     set({ user: null, isAuthenticated: false, isLoading: false })
-    // On web: force a full page reload so React state fully resets
-    if (typeof window !== 'undefined' && window.location) {
-      setTimeout(() => { window.location.href = '/' }, 100)
-    }
   },
 }))
 

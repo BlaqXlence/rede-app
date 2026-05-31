@@ -85,8 +85,10 @@ export default function SettingsScreen({ navigation }) {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => {
-            logout()  // triggers isAuthenticated=false → NavigationContainer switches to Auth
+          onPress: async () => {
+            await logout()
+            // After logout, isAuthenticated=false triggers NavigationContainer
+            // to unmount MainNavigator and mount AuthNavigator automatically
           },
         },
       ]
