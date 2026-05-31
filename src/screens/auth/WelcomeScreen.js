@@ -4,7 +4,7 @@
 import React from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Dimensions, Image, Platform,
+  Dimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore from '../../store/themeStore'
@@ -21,21 +21,8 @@ export default function WelcomeScreen({ navigation }) {
 
         {/* ── Logo centred — fills top half ── */}
         <View style={s.logoSection}>
-          <View style={[s.logoWrap, { backgroundColor: colors.background }]}>
-            {Platform.OS === 'web' ? (
-              <img
-                src="/assets/logo.png"
-                alt="REDE"
-                style={{ width: 120, height: 120, objectFit: 'contain' }}
-                onError={e => { e.target.style.display = 'none' }}
-              />
-            ) : (
-              <Image
-                source={require('../../../assets/logo.png')}
-                style={s.logoImg}
-                resizeMode="contain"
-              />
-            )}
+          <View style={[s.logoBox, { backgroundColor: colors.primary }]}>
+            <Text style={s.logoLetter}>R</Text>
           </View>
           <Text style={[s.brand, { color: colors.textPrimary }]}>REDE</Text>
           <Text style={[s.tagline, { color: colors.textSecondary }]}>
@@ -80,14 +67,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoWrap: {
-    width: 130, height: 130,
-    borderRadius: 32,
+  logoBox: {
+    width: 100, height: 100,
+    borderRadius: 28,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 16,
-    overflow: 'hidden',
   },
-  logoImg: { width: 120, height: 120 },
+  logoLetter: { color: '#fff', fontSize: 52, fontWeight: '900' },
   brand:   { fontSize: 36, fontWeight: '900', letterSpacing: -1, marginBottom: 6 },
   tagline: { fontSize: 15 },
 
