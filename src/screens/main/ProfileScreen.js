@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
-  View, Text, FlatList, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Dimensions, ScrollView, Alert,
 } from 'react-native'
 import { SafeAreaView }  from 'react-native-safe-area-context'
@@ -186,21 +186,17 @@ export default function ProfileScreen({ navigation }) {
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[s.container, { maxWidth: MAX_W }]}>
-        <FlatList
-          data={rows}
-          keyExtractor={(_, i) => String(i)}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={Header}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          renderItem={({ item: row }) => (
-            <View style={s.gridRow}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <Header />
+          {rows.map((row, i) => (
+            <View key={i} style={s.gridRow}>
               {row.map(e => (
                 <EventCard key={e.id} event={e} onPress={openEvent} style={{ width: CARD_W }} />
               ))}
               {row.length === 1 && <View style={{ width: CARD_W }} />}
             </View>
-          )}
-        />
+          ))}
+        </ScrollView>
       </View>
     </SafeAreaView>
   )

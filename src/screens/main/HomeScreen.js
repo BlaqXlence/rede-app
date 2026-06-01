@@ -269,9 +269,7 @@ export default function HomeScreen({ navigation }) {
                 <Text style={[s.sectionTitle, { color: colors.textPrimary, marginBottom: 14 }]}>
                   {filtered.length} {filtered.length === 1 ? 'event' : 'events'} found
                 </Text>
-                {isLoadingEvents ? (
-                  <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
-                ) : filtered.length > 0 ? (
+                {filtered.length > 0 ? (
                   <View style={s.grid}>
                     {filtered.map(e => (
                       <EventCard key={e.id} event={e} onPress={openEvent} style={{ marginBottom: 12 }} />
@@ -287,7 +285,7 @@ export default function HomeScreen({ navigation }) {
             ) : (
               <>
                 {/* Happening now */}
-                {(isLoadingEvents || (feed.happeningNow?.length > 0)) && (
+                {(feed.happeningNow?.length > 0) && (
                   <View style={s.section}>
                     <View style={s.sectionHead}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -298,18 +296,12 @@ export default function HomeScreen({ navigation }) {
                         <Text style={[s.seeAll, { color: colors.textSecondary }]}>All ›</Text>
                       </TouchableOpacity>
                     </View>
-                    {isLoadingEvents ? (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 16 }}>
-                        <Skeleton colors={colors} /><Skeleton colors={colors} />
-                      </ScrollView>
-                    ) : (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}
                         contentContainerStyle={{ paddingRight: 16 }}>
                         {feed.happeningNow.map(item => (
                           <EventCard key={item.id} event={item} onPress={openEvent} horizontal style={{ marginRight: 12 }} />
                         ))}
                       </ScrollView>
-                    )}
                   </View>
                 )}
 
@@ -330,7 +322,7 @@ export default function HomeScreen({ navigation }) {
                   />
                 ))}
 
-                {!isLoadingEvents && allEvents.length === 0 && (
+                {allEvents.length === 0 && (
                   <View style={s.empty}>
                     <Text style={{ fontSize: 52 }}>🎭</Text>
                     <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>No events yet</Text>

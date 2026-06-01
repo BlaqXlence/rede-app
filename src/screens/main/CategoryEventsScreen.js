@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore  from '../../store/themeStore'
 import useEventsStore from '../../store/eventsStore'
@@ -38,17 +38,16 @@ export default function CategoryEventsScreen({ navigation, route }) {
           <Text style={[styles.emptyTxt, { color: colors.textSecondary }]}>No events in this category yet</Text>
         </View>
       ) : (
-        <FlatList
-          data={events}
-          keyExtractor={e => e.id}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <EventCard event={item} onPress={openEvent} style={{ marginBottom: 10 }} />
-          )}
-        />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+          {Array.from({ length: Math.ceil(events.length / 2) }, (_, i) => events.slice(i*2, i*2+2)).map((row, i) => (
+            <View key={i} style={styles.row}>
+              {row.map(item => (
+                <EventCard key={item.id} event={item} onPress={openEvent} style={{ marginBottom: 10 }} />
+              ))}
+              {row.length === 1 && <View style={{ flex: 1 }} />}
+            </View>
+          ))}
+        </ScrollView>
       )}
 
       <BottomNav navigation={navigation} activeTab="Home" />
