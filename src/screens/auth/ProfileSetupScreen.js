@@ -8,7 +8,7 @@ import React, { useState } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Alert, Dimensions, ScrollView, Platform,
-  ActivityIndicator, TextInput,
+  ActivityIndicator, TextInput, KeyboardAvoidingView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore from '../../store/themeStore'

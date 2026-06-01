@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Dimensions,
+  StyleSheet, ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore    from '../../store/themeStore'
