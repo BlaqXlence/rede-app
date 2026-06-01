@@ -32,7 +32,7 @@ function ShareIcon({ color }) {
 export default function EventDetailScreen({ navigation, route }) {
   const { eventId, event: fromParams } = route.params || {}
   const { colors }  = useThemeStore()
-  const { getEventById, joinEvent, leaveEvent, isAttending, checkAttending, deleteEventLocal } = useEventsStore()
+  const { getEventById, joinEvent, leaveEvent, isAttending, checkAttending, deleteEventLocal, toggleLike, likedEvents } = useEventsStore()
   const { user }    = useAuthStore()
 
   const [activeTab,  setActiveTab]  = useState('Comments')
@@ -44,6 +44,7 @@ export default function EventDetailScreen({ navigation, route }) {
   const event      = storeEvent || fromParams
 
   const attending   = isAttending(event?.id)
+  const isLiked     = likedEvents?.includes(event?.id)
   const isOrganizer = event?.organizer?.id === user?.id
   const isFull      = event?.maxAttendees && (event?.attendeeCount || 0) >= event?.maxAttendees
   const catColor    = colors.cat?.[event?.category] || colors.primary
@@ -155,9 +156,17 @@ export default function EventDetailScreen({ navigation, route }) {
           <TouchableOpacity style={[s.navBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
             <Text style={[s.navBtnTxt, { color: colors.primary }]}>←</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[s.navBtn, { backgroundColor: colors.surface }]} onPress={() => setShareModal(true)}>
-            <ShareIcon color={colors.primary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity
+              style={[s.navBtn, { backgroundColor: isLiked ? colors.primary : colors.surface }]}
+              onPress={() => event?.id && toggleLike(event.id)}
+            >
+              <Text style={{ fontSize: 16 }}>{isLiked ? '♥' : '♡'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.navBtn, { backgroundColor: colors.surface }]} onPress={() => setShareModal(true)}>
+              <ShareIcon color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -225,7 +234,10 @@ export default function EventDetailScreen({ navigation, route }) {
             {/* Details */}
             <View style={[s.detailCard, { backgroundColor: colors.surface }]}>
               <DetailRow icon="📅" text={formatDateRange(event.startTime, event.endTime)} colors={colors} />
-              <DetailRow icon="📍" text={venueStr || 'Kampala'} colors={colors} />
+              <DetailRow icon="📍" text={venueStr || (event.location?.city || 'Kampala')} colors={colors} />
+              {event.location?.city && venueStr && !venueStr.toLowerCase().includes(event.location.city.toLowerCase()) && (
+                <DetailRow icon="🏙️" text={event.location.city} colors={colors} />
+              )}
               {(event.location?.lat || event.location?.mapsLink) && (
                 <TouchableOpacity style={[s.mapsBtn, { backgroundColor: colors.primaryFaint }]} onPress={openMaps}>
                   <Text style={[s.mapsBtnTxt, { color: colors.primary }]}>Open in Google Maps →</Text>
@@ -271,7 +283,11 @@ export default function EventDetailScreen({ navigation, route }) {
               <CommentSection eventId={event.id} isOrganizer={isOrganizer} justJoined={justJoined} />
             )}
             {activeTab === 'Attendees' && (
-              <AttendeesSection eventId={event.id} attendeeCount={event.attendeeCount} />
+              <AttendeesSection
+              eventId={event.id}
+              attendeeCount={event.attendeeCount}
+              onPressAttendee={a => navigation.navigate('Organizer', { organizerId: a.id })}
+            />
             )}
           </View>
         </ScrollView>

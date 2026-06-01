@@ -114,8 +114,8 @@ const sk = StyleSheet.create({
 })
 
 /* ── Section ────────────────────────────────────────────────── */
-function Section({ title, events, loading, onPress, onSeeAll, colors }) {
-  if (!loading && !events?.length) return null
+function Section({ title, events, onPress, onSeeAll, colors }) {
+  if (!events?.length) return null
   return (
     <View style={s.section}>
       <View style={s.sectionHead}>
@@ -129,13 +129,9 @@ function Section({ title, events, loading, onPress, onSeeAll, colors }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingRight: 16 }}
       >
-        {loading ? (
-          <><Skeleton colors={colors} /><Skeleton colors={colors} /></>
-        ) : (
-          events.map(item => (
-            <EventCard key={item.id} event={item} onPress={onPress} horizontal style={{ marginRight: 12 }} />
-          ))
-        )}
+        {events.map(item => (
+          <EventCard key={item.id} event={item} onPress={onPress} horizontal style={{ marginRight: 12 }} />
+        ))}
       </ScrollView>
     </View>
   )
@@ -149,7 +145,7 @@ const ALL_CITIES = [{ name: 'All Uganda', lat: 1.3733, lng: 32.2903 }, ...UGANDA
 export default function HomeScreen({ navigation }) {
   const { user }   = useAuthStore()
   const { colors }  = useThemeStore()
-  const { feed, requestLocation, isLoadingEvents } = useEventsStore()
+  const { feed, requestLocation } = useEventsStore()
 
   const [refreshing,  setRefreshing]  = useState(false)
   const [cityModal,   setCityModal]   = useState(false)
@@ -328,7 +324,6 @@ export default function HomeScreen({ navigation }) {
                     key={sc.id}
                     title={sc.title}
                     events={sectionEvents(sc.categoryId)}
-                    loading={isLoadingEvents}
                     onPress={openEvent}
                     onSeeAll={() => openCategory(sc.categoryId, sc.title)}
                     colors={colors}

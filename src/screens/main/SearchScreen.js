@@ -62,6 +62,7 @@ export default function SearchScreen({ navigation }) {
   function openEvent(e) { navigation.navigate('EventDetail', { eventId: e.id, event: e }) }
 
   return (
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[s.phone, { maxWidth: MAX_W }]}>
 
@@ -168,6 +169,7 @@ export default function SearchScreen({ navigation }) {
         </ScrollView>
       </View>
     </SafeAreaView>
+    </KeyboardAvoidingView>
   )
 }
 

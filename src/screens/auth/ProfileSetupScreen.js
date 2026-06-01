@@ -95,6 +95,7 @@ export default function ProfileSetupScreen({ navigation }) {
   const step2Valid = !bdSet || ageOk  // birthday optional but if set must be valid
 
   return (
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top','bottom']}>
       <View style={[s.phone, { maxWidth: MAX_W }]}>
 
@@ -304,6 +305,7 @@ export default function ProfileSetupScreen({ navigation }) {
         )}
       </View>
     </SafeAreaView>
+    </KeyboardAvoidingView>
   )
 }
 

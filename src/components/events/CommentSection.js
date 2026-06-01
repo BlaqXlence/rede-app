@@ -11,7 +11,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform,
   StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native'
 import AsyncStorage  from '@react-native-async-storage/async-storage'
@@ -238,6 +238,7 @@ export default function CommentSection({ eventId, isOrganizer, justJoined }) {
 
       {/* Input row */}
       {canComment ? (
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={80}>
         <View style={[st.inputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
           <Avatar uri={user?.avatar} name={user?.name} size={28} />
             <TextInput
