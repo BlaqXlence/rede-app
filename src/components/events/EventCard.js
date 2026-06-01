@@ -48,7 +48,7 @@ export default function EventCard({ event, onPress, horizontal = false, style })
           style={[styles.img, { height: horizontal ? 190 : 150 }]}
           resizeMode="cover"
           // Lazy load on web - don't load until scrolled into view
-          {...(require('react-native').Platform.OS === 'web' ? { loading: 'lazy' } : {})}
+
           // Low memory mode - don't keep full res in memory
           fadeDuration={200}
         />

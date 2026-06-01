@@ -1,8 +1,3 @@
-/**
- * OtpScreen - works perfectly on Android, iOS and web
- * Single hidden TextInput captures input, visual boxes show digits
- * This is the standard pattern used by WhatsApp, Twitter, etc
- */
 import React, { useState, useRef, useEffect } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
@@ -20,9 +15,10 @@ const PAD        = 24
 const BOX_SIZE   = Math.floor((MAX_W - PAD * 2 - 8 * 5) / 6)
 
 export default function OtpScreen({ navigation, route }) {
-  const { phone }  = route.params
-  const { colors } = useThemeStore()
-  const { verifyOtp, sendOtp } = useAuthStore()
+  const { phone }    = route.params
+  const { colors }   = useThemeStore()
+  // Pull everything we need from the store at the top level — no dynamic require
+  const { verifyOtp, sendOtp, user } = useAuthStore()
 
   const [code,    setCode]    = useState('')
   const [loading, setLoading] = useState(false)
@@ -34,7 +30,6 @@ export default function OtpScreen({ navigation, route }) {
 
   useEffect(() => {
     startTimer(WAIT_TIMES[0])
-    // Auto focus
     setTimeout(() => inputRef.current?.focus(), 400)
     return () => clearInterval(timerRef.current)
   }, [])
@@ -43,28 +38,41 @@ export default function OtpScreen({ navigation, route }) {
     clearInterval(timerRef.current)
     setTimer(s)
     timerRef.current = setInterval(() => {
-      setTimer(p => { if (p <= 1) { clearInterval(timerRef.current); return 0 } return p - 1 })
+      setTimer(p => {
+        if (p <= 1) { clearInterval(timerRef.current); return 0 }
+        return p - 1
+      })
     }, 1000)
   }
 
   function fmt(s) {
-    return s >= 60 ? `${Math.floor(s/60)}m ${s % 60}s` : `${s}s`
+    return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`
   }
 
-  async function verify(codeToVerify) {
-    const c = codeToVerify || code
+  async function verify(codeToCheck) {
+    const c = codeToCheck || code
     if (c.length < LEN) return
     setLoading(true)
     try {
-      const { isNewUser } = await verifyOtp(phone, c)
-      const { user } = require('../../store/authStore').default.getState()
-      const needsSetup = isNewUser || !user?.profileComplete || !user?.nickname
-      if (needsSetup) navigation.replace('ProfileSetup')
-      else navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })
-    } catch {
+      const result = await verifyOtp(phone, c)
+      const isNew  = result?.isNewUser
+
+      // After verifyOtp, user is now in the store via useAuthStore
+      // Read profileComplete from the result, not from a dynamic require
+      const needsSetup = isNew || !result?.user?.profileComplete || !result?.user?.nickname
+
+      if (needsSetup) {
+        navigation.replace('ProfileSetup')
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })
+      }
+    } catch (e) {
       Alert.alert('Wrong code', 'Check the code and try again.')
       setCode('')
-    } finally { setLoading(false) }
+      setTimeout(() => inputRef.current?.focus(), 100)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function resend() {
@@ -85,7 +93,7 @@ export default function OtpScreen({ navigation, route }) {
   const digits = code.split('').concat(Array(LEN).fill('')).slice(0, LEN)
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top','bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <View style={[s.container, { maxWidth: MAX_W }]}>
 
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.back}>
@@ -94,13 +102,14 @@ export default function OtpScreen({ navigation, route }) {
 
         <Text style={[s.h1, { color: colors.textPrimary }]}>Enter the code</Text>
         <Text style={[s.sub, { color: colors.textSecondary }]}>
-          Sent to <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{phone}</Text>
+          Sent to{' '}
+          <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{phone}</Text>
         </Text>
         <Text style={[s.hint, { color: colors.textHint }]}>
           SMS can take up to 2 minutes. Check your messages.
         </Text>
 
-        {/* Invisible input captures all typing */}
+        {/* Single hidden input captures keyboard */}
         <TextInput
           ref={inputRef}
           value={code}
@@ -116,7 +125,7 @@ export default function OtpScreen({ navigation, route }) {
           caretHidden
         />
 
-        {/* Visual boxes — tap any to focus the hidden input */}
+        {/* Visual boxes */}
         <TouchableOpacity
           style={s.boxes}
           onPress={() => inputRef.current?.focus()}
@@ -128,9 +137,10 @@ export default function OtpScreen({ navigation, route }) {
               style={[
                 s.box,
                 {
-                  borderColor:     i === code.length ? colors.primary : (d ? colors.primary : colors.border),
+                  borderColor: i === code.length
+                    ? colors.primary
+                    : d ? colors.primary : colors.border,
                   backgroundColor: d ? colors.primaryFaint : colors.surface,
-                  // Active box gets a highlighted border
                   borderWidth: i === code.length ? 2.5 : 2,
                 }
               ]}
@@ -140,37 +150,42 @@ export default function OtpScreen({ navigation, route }) {
           ))}
         </TouchableOpacity>
 
-        {/* Resend */}
-        <TouchableOpacity onPress={resend} disabled={timer > 0 || sending} style={s.resendBtn}>
+        <TouchableOpacity
+          onPress={resend}
+          disabled={timer > 0 || sending}
+          style={s.resendBtn}
+        >
           <Text style={[s.resendTxt, { color: timer > 0 || sending ? colors.textHint : colors.primary }]}>
             {sending ? 'Sending...' : timer > 0 ? `Resend in ${fmt(timer)}` : 'Resend code'}
           </Text>
         </TouchableOpacity>
 
-        {timer > 0 && attempt === 0 && (
+        {timer > 0 && (
           <Text style={[s.helpTxt, { color: colors.textHint }]}>
-            Check your SMS inbox. Code may take a moment.
-          </Text>
-        )}
-        {timer > 0 && attempt > 0 && (
-          <Text style={[s.helpTxt, { color: colors.textHint }]}>
-            Still nothing? Make sure you have signal and the number is correct.
+            {attempt === 0
+              ? 'Check your SMS inbox. Code may take a moment.'
+              : 'Still nothing? Check you have signal.'}
           </Text>
         )}
 
-        {/* Verify button */}
         <TouchableOpacity
-          style={[s.btn, { backgroundColor: code.length === LEN && !loading ? colors.primary : colors.border }]}
+          style={[s.btn, {
+            backgroundColor: code.length === LEN && !loading
+              ? colors.primary : colors.border,
+          }]}
           onPress={() => verify()}
           disabled={code.length < LEN || loading}
           activeOpacity={0.87}
         >
-          <Text style={s.btnTxt}>{loading ? 'Verifying...' : 'Verify →'}</Text>
+          <Text style={s.btnTxt}>
+            {loading ? 'Verifying...' : 'Verify →'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.wrongBtn}>
           <Text style={[s.wrongTxt, { color: colors.textHint }]}>Wrong number? Go back</Text>
         </TouchableOpacity>
+
       </View>
     </SafeAreaView>
   )
@@ -184,38 +199,28 @@ const s = StyleSheet.create({
   h1:        { fontSize: 28, fontWeight: '900', marginBottom: 8, letterSpacing: -0.5 },
   sub:       { fontSize: 15, marginBottom: 6 },
   hint:      { fontSize: 13, lineHeight: 18, marginBottom: 32 },
-
   hidden: {
     position: 'absolute',
-    width: 1, height: 1,
-    opacity: 0,
+    width: 1, height: 1, opacity: 0,
   },
-
   boxes: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
   },
   box: {
-    width:        BOX_SIZE,
-    height:       BOX_SIZE + 8,
-    borderRadius: 12,
-    borderWidth:  2,
-    alignItems:   'center',
+    width:  BOX_SIZE,
+    height: BOX_SIZE + 8,
+    borderRadius:   12,
+    alignItems:     'center',
     justifyContent: 'center',
   },
-  digit: {
-    fontSize:   26,
-    fontWeight: '800',
-  },
-
+  digit:     { fontSize: 26, fontWeight: '800' },
   resendBtn: { alignItems: 'center', paddingVertical: 8, marginBottom: 6 },
   resendTxt: { fontSize: 14, fontWeight: '600' },
-  helpTxt:   { fontSize: 12, textAlign: 'center', lineHeight: 18, marginBottom: 16, paddingHorizontal: 8 },
-
-  btn:    { borderRadius: 14, paddingVertical: 17, alignItems: 'center', marginTop: 8, marginBottom: 16 },
-  btnTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
-
+  helpTxt:   { fontSize: 12, textAlign: 'center', lineHeight: 18, marginBottom: 16 },
+  btn:       { borderRadius: 14, paddingVertical: 17, alignItems: 'center', marginTop: 8, marginBottom: 16 },
+  btnTxt:    { color: '#fff', fontSize: 16, fontWeight: '800' },
   wrongBtn:  { alignItems: 'center', paddingVertical: 8 },
   wrongTxt:  { fontSize: 13, textDecorationLine: 'underline' },
 })

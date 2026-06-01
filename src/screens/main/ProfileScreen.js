@@ -1,21 +1,17 @@
-/**
- * ProfileScreen — bulletproof scroll, fixed width always.
- * Uses a single FlatList with the header as ListHeaderComponent.
- * Grid cards rendered inside the list so ONE scroll handles everything.
- */
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, Dimensions, ScrollView, Alert,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { Svg, Path } from 'react-native-svg'
-import useThemeStore  from '../../store/themeStore'
-import useAuthStore   from '../../store/authStore'
-import useEventsStore from '../../store/eventsStore'
-import Avatar         from '../../components/common/Avatar'
-import EventCard      from '../../components/events/EventCard'
-import { uploadApi }  from '../../services/api'
+import { SafeAreaView }  from 'react-native-safe-area-context'
+import * as ImagePicker  from 'expo-image-picker'
+import { Svg, Path }     from 'react-native-svg'
+import useThemeStore     from '../../store/themeStore'
+import useAuthStore      from '../../store/authStore'
+import useEventsStore    from '../../store/eventsStore'
+import Avatar            from '../../components/common/Avatar'
+import EventCard         from '../../components/events/EventCard'
+import { uploadApi }     from '../../services/api'
 
 const SCREEN_W = Dimensions.get('window').width
 const MAX_W    = Math.min(SCREEN_W, 500)
@@ -30,7 +26,7 @@ const TABS = [
   { key: 'liked',     label: 'Liked'       },
 ]
 
-const EMPTY_COPY = {
+const EMPTY = {
   own:       { icon: '🎭', title: 'No events yet',          sub: 'Create your first event' },
   attended:  { icon: '✅', title: 'No past events',         sub: 'Events you attended show here' },
   attending: { icon: '🎟️', title: 'Not attending anything', sub: 'Join an event to see it here' },
@@ -49,17 +45,17 @@ function GearIcon({ color }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { colors }  = useThemeStore()
-  const { user }    = useAuthStore()
-  const { events, attending, likedEvents, loadLiked } = useEventsStore()
-  const [tab, setTab] = useState('own')
+  const { colors }                                        = useThemeStore()
+  const { user, updateProfile }                           = useAuthStore()
+  const { events, attending, likedEvents, loadLiked }     = useEventsStore()
+  const [tab, setTab]                                     = useState('own')
 
   useEffect(() => { loadLiked?.() }, [])
 
   if (!user) return null
 
-  const now   = new Date()
-  const sets  = {
+  const now  = new Date()
+  const sets = {
     own:       events.filter(e => e.organizer?.id === user.id),
     attending: events.filter(e => (attending||[]).includes(e.id) && new Date(e.endTime) > now),
     attended:  events.filter(e => (attending||[]).includes(e.id) && new Date(e.endTime) <= now),
@@ -67,28 +63,40 @@ export default function ProfileScreen({ navigation }) {
   }
   const cards = sets[tab] || []
 
-  function openEvent(e) { navigation.navigate('EventDetail', { eventId: e.id, event: e }) }
+  function openEvent(e) {
+    navigation.navigate('EventDetail', { eventId: e.id, event: e })
+  }
 
   async function pickPhoto() {
-    const perm = await require('expo-image-picker').requestMediaLibraryPermissionsAsync()
-    if (!perm.granted) { Alert.alert('Permission needed', 'Allow photo access to change your picture.'); return }
-    const result = await require('expo-image-picker').launchImageLibraryAsync({
-      mediaTypes: require('expo-image-picker').MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [1,1], quality: 0.8,
-    })
-    if (!result.canceled && result.assets[0]) {
-      try {
-        const res = await uploadApi.upload(result.assets[0].uri)
-        const { updateProfile } = require('../../store/authStore').default.getState()
-        await updateProfile({ avatar_url: res.url, avatar: res.url })
-      } catch {}
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) {
+        Alert.alert('Permission needed', 'Allow photo access to change your picture.')
+        return
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+      if (!result.canceled && result.assets?.[0]) {
+        const uri = result.assets[0].uri
+        // Optimistic update
+        await updateProfile({ avatar: uri, avatar_url: uri })
+        // Upload in background
+        try {
+          const res = await uploadApi.upload(uri)
+          await updateProfile({ avatar: res.url, avatar_url: res.url })
+        } catch {}
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message)
     }
   }
 
-  // Header rendered above the grid
   const Header = useCallback(() => (
     <View>
-      {/* Top bar */}
       <View style={s.topBar}>
         <Text style={[s.topName, { color: colors.textPrimary }]}>
           {user.nickname || user.name || 'Profile'}
@@ -101,7 +109,6 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Hero */}
       <View style={s.hero}>
         <TouchableOpacity onPress={pickPhoto} activeOpacity={0.85} style={s.avatarWrap}>
           <Avatar uri={user.avatar} name={user.name || user.phone} size={80} />
@@ -123,16 +130,14 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Bio */}
       <View style={s.bio}>
         <Text style={[s.name, { color: colors.textPrimary }]}>
           {user.nickname || user.name || 'Add your name'}
         </Text>
-        <Text style={[s.phone, { color: colors.textSecondary }]}>{user.phone}</Text>
+        <Text style={[s.phone_, { color: colors.textSecondary }]}>{user.phone}</Text>
         {!!user.email && <Text style={[s.email, { color: colors.textHint }]}>{user.email}</Text>}
       </View>
 
-      {/* Tab bar — horizontal scroll */}
       <ScrollView
         horizontal showsHorizontalScrollIndicator={false}
         style={[s.tabBar, { borderBottomColor: colors.border }]}
@@ -151,15 +156,13 @@ export default function ProfileScreen({ navigation }) {
         ))}
       </ScrollView>
 
-      {/* Spacing before grid */}
       <View style={{ height: PAD }} />
 
-      {/* Empty state lives inside header so FlatList doesn't fight it */}
       {cards.length === 0 && (
         <View style={s.empty}>
-          <Text style={s.emptyIcon}>{EMPTY_COPY[tab].icon}</Text>
-          <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>{EMPTY_COPY[tab].title}</Text>
-          <Text style={[s.emptySub,   { color: colors.textHint   }]}>{EMPTY_COPY[tab].sub}</Text>
+          <Text style={s.emptyIcon}>{EMPTY[tab].icon}</Text>
+          <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>{EMPTY[tab].title}</Text>
+          <Text style={[s.emptySub,   { color: colors.textHint   }]}>{EMPTY[tab].sub}</Text>
           {(tab === 'own' || tab === 'attending') && (
             <TouchableOpacity
               style={[s.emptyBtn, { backgroundColor: colors.primary }]}
@@ -173,9 +176,8 @@ export default function ProfileScreen({ navigation }) {
         </View>
       )}
     </View>
-  ), [tab, colors, user, sets])
+  ), [tab, colors, user, sets, cards.length])
 
-  // Pair cards into rows of 2 for the grid
   const rows = []
   for (let i = 0; i < cards.length; i += 2) {
     rows.push(cards.slice(i, i + 2))
@@ -193,14 +195,8 @@ export default function ProfileScreen({ navigation }) {
           renderItem={({ item: row }) => (
             <View style={s.gridRow}>
               {row.map(e => (
-                <EventCard
-                  key={e.id}
-                  event={e}
-                  onPress={openEvent}
-                  style={{ width: CARD_W }}
-                />
+                <EventCard key={e.id} event={e} onPress={openEvent} style={{ width: CARD_W }} />
               ))}
-              {/* spacer if odd */}
               {row.length === 1 && <View style={{ width: CARD_W }} />}
             </View>
           )}
@@ -213,57 +209,27 @@ export default function ProfileScreen({ navigation }) {
 const s = StyleSheet.create({
   safe:      { flex: 1, alignItems: 'center' },
   container: { flex: 1, width: '100%' },
-
-  topBar: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: PAD, paddingTop: 12, paddingBottom: 4,
-  },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: PAD, paddingTop: 12, paddingBottom: 4 },
   topName: { fontSize: 17, fontWeight: '800' },
   gear:    { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-
-  hero: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: PAD, paddingTop: 12, paddingBottom: 8,
-    gap: 16,
-  },
+  hero:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: PAD, paddingTop: 12, paddingBottom: 8, gap: 16 },
   avatarWrap: { position: 'relative' },
-  plus: {
-    position: 'absolute', bottom: 0, right: 0,
-    width: 22, height: 22, borderRadius: 11,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  plus: { position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   plusTxt: { color: '#fff', fontSize: 16, fontWeight: '800', lineHeight: 22 },
-
   statsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
   stat:  { alignItems: 'center' },
   statN: { fontSize: 20, fontWeight: '900' },
   statL: { fontSize: 11, marginTop: 2 },
-
-  bio:   { paddingHorizontal: PAD, paddingBottom: 12 },
-  name:  { fontSize: 16, fontWeight: '700', marginBottom: 2 },
-  phone: { fontSize: 13, marginBottom: 1 },
-  email: { fontSize: 12 },
-
+  bio:    { paddingHorizontal: PAD, paddingBottom: 12 },
+  name:   { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  phone_: { fontSize: 13, marginBottom: 1 },
+  email:  { fontSize: 12 },
   tabBar:      { borderBottomWidth: 1, flexGrow: 0 },
   tabBarInner: { paddingHorizontal: 4 },
   tabBtn:      { paddingHorizontal: 16, paddingVertical: 12 },
   tabTxt:      { fontSize: 13, fontWeight: '700' },
-
-  // Grid row
-  gridRow: {
-    flexDirection: 'row',
-    paddingHorizontal: PAD,
-    gap: GAP,
-    marginBottom: GAP,
-  },
-
-  // Empty state
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: PAD,
-  },
+  gridRow: { flexDirection: 'row', paddingHorizontal: PAD, gap: GAP, marginBottom: GAP },
+  empty:      { alignItems: 'center', paddingVertical: 48, paddingHorizontal: PAD },
   emptyIcon:  { fontSize: 46, marginBottom: 12 },
   emptyTitle: { fontSize: 17, fontWeight: '700', marginBottom: 6 },
   emptySub:   { fontSize: 14, textAlign: 'center', marginBottom: 20, lineHeight: 20 },

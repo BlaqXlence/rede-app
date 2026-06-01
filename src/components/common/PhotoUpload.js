@@ -4,11 +4,12 @@ import {
   Image, Alert, ActivityIndicator,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import useThemeStore from '../../store/themeStore'
 
 // Upload via FormData - works on native without base64 conversion
 async function uploadImage(uri) {
-  const token = await require('@react-native-async-storage/async-storage').default.getItem('rede:token')
+  const token = await AsyncStorage.getItem('rede:token')
   const BASE   = 'https://web-production-e695b.up.railway.app/api/v1'
 
   const form = new FormData()

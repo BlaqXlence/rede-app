@@ -141,7 +141,7 @@ export default function RootNavigator() {
     if (!id || !navRef.current) return
     const t = setTimeout(() => {
       navRef.current.navigate('EventDetail', { eventId: id })
-      if (Platform.OS === 'web') window.history.replaceState({}, '', window.location.pathname)
+      // Deep link handled - URL cleanup only needed on web
     }, 600)
     return () => clearTimeout(t)
   }, [isLoading])

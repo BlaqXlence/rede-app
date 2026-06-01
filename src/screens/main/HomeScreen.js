@@ -162,8 +162,7 @@ export default function HomeScreen({ navigation }) {
 
   const hasFilter = filters.category !== 'all' || filters.when !== 'All time' || filters.price !== 'Any price'
 
-  // Sort sections by user interests — interest categories shown first
-  const { user } = require('../../store/authStore').default.getState()
+  // userInterests comes from useAuthStore hook at top of component
   const userInterests = user?.interests || []
 
   // Auto-refresh every 60 seconds while app is open

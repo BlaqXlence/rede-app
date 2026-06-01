@@ -48,7 +48,8 @@ const useAuthStore = create((set, get) => ({
     await AsyncStorage.setItem('rede:token', data.token)
     await AsyncStorage.setItem('rede:user', JSON.stringify(data.user))
     set({ user: data.user, isAuthenticated: true })
-    return { isNewUser: data.isNewUser }
+    // Return user so OtpScreen can check profileComplete without dynamic require
+    return { isNewUser: data.isNewUser, user: data.user }
   },
 
   saveProfile: async (profileData) => {

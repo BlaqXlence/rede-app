@@ -21,7 +21,7 @@ function Stars({ rating, onRate, readonly }) {
             {n <= rating ? '★' : '☆'}
           </Text>
         </TouchableOpacity>
-      ))}
+      ))
     </View>
   )
 }

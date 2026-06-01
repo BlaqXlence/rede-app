@@ -13,6 +13,7 @@ import { DEFAULT_CITY } from '../constants/config'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { generateEventId } from '../utils/formatters'
 import { eventsApi } from '../services/api'
+import useAuthStore from './authStore'
 
 const CACHE_KEY     = 'rede:events:cache'
 const ATTENDING_KEY = 'rede:attending'
@@ -142,7 +143,7 @@ const useEventsStore = create((set, get) => ({
   },
 
   createEvent: async (draft) => {
-    const { user } = require('./authStore').default.getState()
+    const { user } = useAuthStore.getState()
     const localEvent = {
       ...draft,
       id: `EVT-${generateEventId()}`,
