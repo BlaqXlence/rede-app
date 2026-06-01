@@ -54,10 +54,14 @@ export default function CreateEventScreen({ navigation }) {
   const [errors,  setErrors]  = useState({})
   const [posting, setPosting] = useState(false)
 
-  const age        = calcAge(user?.birthday)
-  const hasName    = user?.name?.trim()?.length >= 2 || user?.nickname?.trim()?.length >= 2
-  const isAdult    = !user?.birthday || age === null || age >= 18
-  const canCreate  = hasName && isAdult
+  const age          = calcAge(user?.birthday)
+  const hasPhoto     = !!user?.avatar
+  const hasName      = user?.first_name?.trim()?.length >= 1 || user?.name?.trim()?.length >= 2
+  const hasNickname  = user?.nickname?.trim()?.length >= 2
+  const hasBirthday  = !!user?.birthday
+  const isAdult      = hasBirthday && age !== null && age >= 18
+  const profileFull  = hasPhoto && hasName && hasNickname && hasBirthday && isAdult
+  const canCreate    = profileFull
 
   function setField(k, v) {
     setForm(p => ({ ...p, [k]: v }))

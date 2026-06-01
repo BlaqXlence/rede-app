@@ -158,10 +158,12 @@ export default function EventDetailScreen({ navigation, route }) {
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <TouchableOpacity
-              style={[s.navBtn, { backgroundColor: isLiked ? colors.primary : colors.surface }]}
+              style={[s.navBtn, { backgroundColor: isLiked ? '#EF444422' : colors.surface, borderWidth: isLiked ? 0 : 1.5, borderColor: colors.primary }]}
               onPress={() => event?.id && toggleLike(event.id)}
             >
-              <Text style={{ fontSize: 16 }}>{isLiked ? '♥' : '♡'}</Text>
+              <Text style={{ fontSize: 17, color: isLiked ? '#EF4444' : colors.primary }}>
+                {isLiked ? '♥' : '♡'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.navBtn, { backgroundColor: colors.surface }]} onPress={() => setShareModal(true)}>
               <ShareIcon color={colors.primary} />
@@ -226,17 +228,28 @@ export default function EventDetailScreen({ navigation, route }) {
             <View style={[s.stats, { backgroundColor: colors.surface }]}>
               <StatCell label="Entry"  value={formatUGX(event.entryFee)}           color={colors.primary} colors={colors} />
               <View style={[s.statLine, { backgroundColor: colors.border }]} />
-              <StatCell label="Going"  value={String(event.attendeeCount || 0)}     color={colors.textPrimary} colors={colors} />
+              <StatCell label="Going"  value={String(event.attendeeCount || 0)} color={colors.textPrimary} colors={colors} />
+              {event.maxAttendees && (
+                <>
+                  <View style={[s.statLine, { backgroundColor: colors.border }]} />
+                  <StatCell
+                    label="Spots left"
+                    value={Math.max(0, event.maxAttendees - (event.attendeeCount || 0)) === 0 ? 'Full' : String(Math.max(0, event.maxAttendees - (event.attendeeCount || 0)))}
+                    color={Math.max(0, event.maxAttendees - (event.attendeeCount || 0)) === 0 ? colors.error : Math.max(0, event.maxAttendees - (event.attendeeCount || 0)) <= 5 ? '#F59E0B' : colors.success}
+                    colors={colors}
+                  />
+                </>
+              )}
               <View style={[s.statLine, { backgroundColor: colors.border }]} />
               <StatCell label="Rating" value={event.avgRating > 0 ? `${Number(event.avgRating).toFixed(1)} ★` : '—'} color={colors.textPrimary} colors={colors} />
             </View>
 
             {/* Details */}
             <View style={[s.detailCard, { backgroundColor: colors.surface }]}>
-              <DetailRow icon="📅" text={formatDateRange(event.startTime, event.endTime)} colors={colors} />
-              <DetailRow icon="📍" text={venueStr || (event.location?.city || 'Kampala')} colors={colors} />
+              <DetailRow icon="Date" text={formatDateRange(event.startTime, event.endTime)} colors={colors} />
+              <DetailRow icon="Venue" text={venueStr || (event.location?.city || 'Kampala')} colors={colors} />
               {event.location?.city && venueStr && !venueStr.toLowerCase().includes(event.location.city.toLowerCase()) && (
-                <DetailRow icon="🏙️" text={event.location.city} colors={colors} />
+                <DetailRow icon="City" text={event.location.city} colors={colors} />
               )}
               {(event.location?.lat || event.location?.mapsLink) && (
                 <TouchableOpacity style={[s.mapsBtn, { backgroundColor: colors.primaryFaint }]} onPress={openMaps}>
