@@ -8,7 +8,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react'
 import {
-  View, Text, ScrollView, FlatList, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
   StyleSheet, RefreshControl, Dimensions, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView }   from 'react-native-safe-area-context'
@@ -124,24 +124,19 @@ function Section({ title, events, loading, onPress, onSeeAll, colors }) {
           <Text style={[s.seeAll, { color: colors.textSecondary }]}>All ›</Text>
         </TouchableOpacity>
       </View>
-      {loading ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 16 }}>
-          <Skeleton colors={colors} /><Skeleton colors={colors} />
-        </ScrollView>
-      ) : (
-        <FlatList
-          data={events}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={e => e.id}
-          contentContainerStyle={{ paddingRight: 16 }}
-          snapToInterval={CARD_WIDTH_HORIZ + 12}
-          decelerationRate="fast"
-          renderItem={({ item }) => (
-            <EventCard event={item} onPress={onPress} horizontal style={{ marginRight: 12 }} />
-          )}
-        />
-      )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingRight: 16 }}
+      >
+        {loading ? (
+          <><Skeleton colors={colors} /><Skeleton colors={colors} /></>
+        ) : (
+          events.map(item => (
+            <EventCard key={item.id} event={item} onPress={onPress} horizontal style={{ marginRight: 12 }} />
+          ))
+        )}
+      </ScrollView>
     </View>
   )
 }
@@ -312,18 +307,12 @@ export default function HomeScreen({ navigation }) {
                         <Skeleton colors={colors} /><Skeleton colors={colors} />
                       </ScrollView>
                     ) : (
-                      <FlatList
-                        data={feed.happeningNow}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={e => e.id}
-                        contentContainerStyle={{ paddingRight: 16 }}
-                        snapToInterval={CARD_WIDTH_HORIZ + 12}
-                        decelerationRate="fast"
-                        renderItem={({ item }) => (
-                          <EventCard event={item} onPress={openEvent} horizontal style={{ marginRight: 12 }} />
-                        )}
-                      />
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingRight: 16 }}>
+                        {feed.happeningNow.map(item => (
+                          <EventCard key={item.id} event={item} onPress={openEvent} horizontal style={{ marginRight: 12 }} />
+                        ))}
+                      </ScrollView>
                     )}
                   </View>
                 )}

@@ -20,7 +20,7 @@ export default function EventCard({ event, onPress, horizontal = false, style })
   const { toggleLike, isLiked } = useEventsStore()
 
   const liked    = isLiked(event.id)
-  const catColor = colors.cat[event.category] || colors.primary
+  const catColor = (colors.cat && event.category && colors.cat[event.category]) || colors.primary
   const catLabel = EVENT_CATEGORIES.find(c => c.id === event.category)?.label || ''
   const isFull   = event.maxAttendees && event.attendeeCount >= event.maxAttendees
   const cardW    = horizontal ? CARD_WIDTH_HORIZ : CARD_WIDTH_GRID

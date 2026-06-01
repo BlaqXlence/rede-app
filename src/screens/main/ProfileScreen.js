@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, Dimensions, ScrollView, Alert,
@@ -95,7 +95,7 @@ export default function ProfileScreen({ navigation }) {
     }
   }
 
-  const Header = useCallback(() => (
+  function Header() { return (
     <View>
       <View style={s.topBar}>
         <Text style={[s.topName, { color: colors.textPrimary }]}>
@@ -176,7 +176,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       )}
     </View>
-  ), [tab, colors, user, sets, cards.length])
+  ) }
 
   const rows = []
   for (let i = 0; i < cards.length; i += 2) {
