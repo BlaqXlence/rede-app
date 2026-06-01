@@ -15,6 +15,7 @@ import { SafeAreaView }   from 'react-native-safe-area-context'
 import { Svg, Path, Circle } from 'react-native-svg'
 import useThemeStore      from '../../store/themeStore'
 import useEventsStore     from '../../store/eventsStore'
+import useAuthStore      from '../../store/authStore'
 import EventCard, { CARD_WIDTH_HORIZ } from '../../components/events/EventCard'
 import CitySelector       from '../../components/common/CitySelector'
 import FilterModal        from '../../components/common/FilterModal'
@@ -151,6 +152,7 @@ const DEFAULT_FILTERS = { category: 'all', when: 'All time', price: 'Any price' 
 const ALL_CITIES = [{ name: 'All Uganda', lat: 1.3733, lng: 32.2903 }, ...UGANDA_CITIES]
 
 export default function HomeScreen({ navigation }) {
+  const { user }   = useAuthStore()
   const { colors }  = useThemeStore()
   const { feed, requestLocation, isLoadingEvents } = useEventsStore()
 
