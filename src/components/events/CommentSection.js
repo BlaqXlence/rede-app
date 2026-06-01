@@ -239,8 +239,8 @@ export default function CommentSection({ eventId, isOrganizer, justJoined }) {
       {/* Input row */}
       {canComment ? (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={80}>
-        <View style={[st.inputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Avatar uri={user?.avatar} name={user?.name} size={28} />
+          <View style={[st.inputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <Avatar uri={user?.avatar} name={user?.name} size={28} />
             <TextInput
               style={[st.input, { color: colors.textPrimary }]}
               value={text} onChangeText={setText}
@@ -253,20 +253,21 @@ export default function CommentSection({ eventId, isOrganizer, justJoined }) {
               onSubmitEditing={handleSend}
               blurOnSubmit={false}
             />
-          <TouchableOpacity
-            style={[st.sendBtn, {
-              backgroundColor: colors.primary,
-              opacity: (!text.trim() || sending) ? 0.35 : 1,
-            }]}
-            onPress={handleSend}
-            disabled={!text.trim() || sending}
-          >
-            {sending
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Text style={st.sendTxt}>↑</Text>
-            }
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[st.sendBtn, {
+                backgroundColor: colors.primary,
+                opacity: (!text.trim() || sending) ? 0.35 : 1,
+              }]}
+              onPress={handleSend}
+              disabled={!text.trim() || sending}
+            >
+              {sending
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={st.sendTxt}>↑</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       ) : (
         <View style={[st.locked, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[st.lockedTxt, { color: colors.textHint }]}>
