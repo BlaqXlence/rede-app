@@ -4,6 +4,8 @@ import {
   Image, Pressable, Dimensions,
 } from 'react-native'
 import { SafeAreaView }  from 'react-native-safe-area-context'
+import BackButton from '../../components/common/BackButton'
+import { ListScreenSkeleton } from '../../components/common/SkeletonLoader'
 import useThemeStore     from '../../store/themeStore'
 import useEventsStore    from '../../store/eventsStore'
 import { formatDateShort, formatUGX } from '../../utils/formatters'
@@ -103,7 +105,7 @@ function ListCard({ event, onPress, colors }) {
 export default function CategoryEventsScreen({ navigation, route }) {
   const { categoryId, title } = route.params
   const { colors }            = useThemeStore()
-  const { feed }              = useEventsStore()
+  const { feed, isLoadingEvents } = useEventsStore()
   const [page, setPage]       = useState(1)
 
   const allEvents = categoryId === 'all'
@@ -140,12 +142,16 @@ export default function CategoryEventsScreen({ navigation, route }) {
       </View>
 
       {allEvents.length === 0 ? (
-        <View style={s.empty}>
-          <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>No events yet</Text>
-          <Text style={[s.emptySub,   { color: colors.textHint }]}>
-            Check back soon or try another category
-          </Text>
-        </View>
+        isLoadingEvents ? (
+          <ListScreenSkeleton count={8} />
+        ) : (
+          <View style={s.empty}>
+            <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>No events yet</Text>
+            <Text style={[s.emptySub,   { color: colors.textHint }]}>
+              Check back soon or try another category
+            </Text>
+          </View>
+        )
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -207,8 +213,7 @@ const lc = StyleSheet.create({
 const s = StyleSheet.create({
   safe:       { flex: 1 },
   header:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
-  backBtn:    { padding: 2 },
-  backTxt:    { fontSize: 22, fontWeight: '700' },
+
   title:      { flex: 1, fontSize: 17, fontWeight: '800' },
   countBadge: { borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
   countTxt:   { fontSize: 12, fontWeight: '700', color: '#fff' },

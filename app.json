@@ -54,7 +54,11 @@
           ]
         }
       ],
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "notification": {
+        "icon": "./assets/notification-icon.png",
+        "color": "#FF6600"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png",

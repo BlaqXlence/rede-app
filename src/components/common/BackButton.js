@@ -1,32 +1,90 @@
 /**
- * BackButton.js
- * Consistent back arrow used on every screen that needs one.
- * Shows as a clean left arrow — works on all screen types.
+ * BackButton — modern SVG chevron, works on any background
+ * light/dark safe, never an emoji
  */
 import React from 'react'
-import { TouchableOpacity, Text, StyleSheet, Platform } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
+import { Svg, Path, Line } from 'react-native-svg'
 import useThemeStore from '../../store/themeStore'
 
-export default function BackButton({ onPress, style }) {
-  const { colors } = useThemeStore()
+function ChevronLeft({ color = '#fff', size = 22, strokeWidth = 2.2 }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.btn, style]}
-      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      activeOpacity={0.7}
-    >
-      <Text style={[styles.arrow, { color: colors.primary }]}>←</Text>
-    </TouchableOpacity>
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M15 19l-7-7 7-7"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   )
 }
 
-const styles = StyleSheet.create({
-  btn: {
-    padding: 4,
-  },
-  arrow: {
-    fontSize: 22,
-    fontWeight: '600',
-  },
+/**
+ * variant:
+ *   "floating"  — dark pill on top of hero image (EventDetail style)
+ *   "header"    — clean circle on page background (CategoryEvents style)
+ *   "plain"     — just the chevron, no background
+ */
+export default function BackButton({
+  onPress,
+  variant = 'header',
+  color,
+  style,
+}) {
+  const { colors } = useThemeStore()
+
+  if (variant === 'floating') {
+    const c = color || '#fff'
+    return (
+      <Pressable
+        onPress={onPress}
+        style={[fl.btn, style]}
+        android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: true }}
+        hitSlop={10}
+      >
+        <ChevronLeft color={c} size={22} strokeWidth={2.4} />
+      </Pressable>
+    )
+  }
+
+  if (variant === 'plain') {
+    const c = color || colors.primary
+    return (
+      <Pressable
+        onPress={onPress}
+        style={[pl.btn, style]}
+        android_ripple={{ color: colors.primary + '22', borderless: true }}
+        hitSlop={10}
+      >
+        <ChevronLeft color={c} size={20} strokeWidth={2.2} />
+      </Pressable>
+    )
+  }
+
+  // header — circle with surface background
+  const c = color || colors.primary
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[hd.btn, { backgroundColor: colors.surface }, style]}
+      android_ripple={{ color: colors.primary + '22', borderless: true }}
+      hitSlop={6}
+    >
+      <ChevronLeft color={c} size={22} strokeWidth={2.3} />
+    </Pressable>
+  )
+}
+
+const fl = StyleSheet.create({
+  btn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.42)', alignItems: 'center', justifyContent: 'center' },
+})
+
+const hd = StyleSheet.create({
+  btn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+})
+
+const pl = StyleSheet.create({
+  btn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 })

@@ -21,6 +21,7 @@ import CitySelector       from '../../components/common/CitySelector'
 import FilterModal        from '../../components/common/FilterModal'
 import { HOME_SECTIONS, EVENT_CATEGORIES, UGANDA_CITIES } from '../../constants/config'
 import Tap from '../../components/common/Tap'
+import { HomeScreenSkeleton, ListScreenSkeleton } from '../../components/common/SkeletonLoader'
 import { formatDateShort, formatUGX } from '../../utils/formatters'
 
 const { width } = Dimensions.get('window')
@@ -309,7 +310,7 @@ const ALL_CITIES = [{ name: 'All Uganda', lat: 1.3733, lng: 32.2903 }, ...UGANDA
 export default function HomeScreen({ navigation }) {
   const { user }   = useAuthStore()
   const { colors }  = useThemeStore()
-  const { feed, requestLocation } = useEventsStore()
+  const { feed, requestLocation, isLoadingEvents } = useEventsStore()
 
   const [refreshing,  setRefreshing]  = useState(false)
   const [cityModal,   setCityModal]   = useState(false)
@@ -462,10 +463,14 @@ export default function HomeScreen({ navigation }) {
                       )}
                     </>
                   ) : (
-                    <View style={s.emptyFilter}>
-                      <Text style={[s.emptyTxt, { color: colors.textHint }]}>No events match your filter</Text>
-                      <Text style={[s.emptyHint, { color: colors.textHint }]}>Try adjusting your filters</Text>
-                    </View>
+                    {isLoadingEvents ? (
+                      <ListScreenSkeleton count={6} />
+                    ) : (
+                      <View style={s.emptyFilter}>
+                        <Text style={[s.emptyTxt, { color: colors.textHint }]}>No events match your filter</Text>
+                        <Text style={[s.emptyHint, { color: colors.textHint }]}>Try adjusting your filters</Text>
+                      </View>
+                    )}
                   )}
                 </View>
               )

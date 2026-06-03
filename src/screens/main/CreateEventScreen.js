@@ -135,11 +135,55 @@ export default function CreateEventScreen({ navigation }) {
     } finally { setPosting(false) }
   }
 
-  // Gate
+  // Gate — show detailed checklist
   if (!canCreate) {
+    const totalDone  = [hasPhoto, hasName, hasNickname, hasBirthday, isAdult].filter(Boolean).length
+    const totalItems = 5
+    const pct        = Math.round((totalDone / totalItems) * 100)
+
+    const items = [
+      {
+        done:    hasPhoto,
+        label:   'Profile photo',
+        detail:  hasPhoto ? 'Looking great!' : 'Add a real photo so organisers and attendees recognise you.',
+        action:  'Add in Profile → tap your avatar',
+      },
+      {
+        done:    hasName,
+        label:   'Full name',
+        detail:  hasName
+          ? `${user?.firstName || user?.first_name || ''} ${user?.lastName || user?.last_name || ''}`.trim()
+          : 'Your real name helps organisers trust you.',
+        action:  'Add in Settings → Profile',
+      },
+      {
+        done:    hasNickname,
+        label:   'Nickname',
+        detail:  hasNickname ? `@${user?.nickname}` : 'This is your public username shown to everyone.',
+        action:  'Add in Settings → Profile',
+      },
+      {
+        done:    hasBirthday,
+        label:   'Date of birth',
+        detail:  hasBirthday ? 'Birthday saved' : 'Required to verify your age before creating events.',
+        action:  'Add in Settings → Profile',
+      },
+      {
+        done:    isAdult,
+        label:   'Age 18 or older',
+        detail:  !hasBirthday
+          ? 'Add your birthday first so we can verify your age.'
+          : isAdult
+          ? `You are ${age} years old — eligible to create events.`
+          : `You are ${age} years old. You must be 18+ to create events.`,
+        action:  null,
+      },
+    ]
+
     return (
       <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top','bottom']}>
         <View style={[s.phone, { maxWidth: MAX_W }]}>
+          {/* Header */}
           <View style={[s.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
               <Text style={[s.backTxt, { color: colors.primary }]}>←</Text>
@@ -147,23 +191,108 @@ export default function CreateEventScreen({ navigation }) {
             <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Create Event</Text>
             <View style={{ width: 30 }} />
           </View>
-          <View style={s.gateWrap}>
-            <Text style={{ fontSize: 56, marginBottom: 20 }}>👤</Text>
-            <Text style={[s.gateTitle, { color: colors.textPrimary }]}>Complete your profile first</Text>
-            <Text style={[s.gateSub, { color: colors.textSecondary }]}>
-              To create events you need a name and must be 18 or older.
-            </Text>
-            <View style={[s.gateList, { backgroundColor: colors.surface }]}>
-              <GateItem done={hasName}  label="Add your name in Settings" colors={colors} />
-              <GateItem done={isAdult}  label="Must be 18+ years old"     colors={colors} />
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={g.scroll}>
+
+            {/* Progress ring area */}
+            <View style={[g.topCard, { backgroundColor: colors.surface }]}>
+              <View style={g.progressRow}>
+                <View style={[g.progressTrack, { backgroundColor: colors.border }]}>
+                  <View style={[g.progressFill, { backgroundColor: colors.primary, width: `${pct}%` }]} />
+                </View>
+                <Text style={[g.pct, { color: colors.primary }]}>{pct}%</Text>
+              </View>
+              <Text style={[g.topTitle, { color: colors.textPrimary }]}>
+                {pct === 100 ? 'Almost there — check age requirement' : 'Complete your profile to create events'}
+              </Text>
+              <Text style={[g.topSub, { color: colors.textSecondary }]}>
+                {totalDone} of {totalItems} requirements met. Once all are complete you can host events on REDE.
+              </Text>
             </View>
+
+            {/* Checklist */}
+            <Text style={[g.sectionLabel, { color: colors.textHint }]}>REQUIREMENTS</Text>
+            <View style={[g.list, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {items.map((item, i) => (
+                <View key={i} style={[g.item, {
+                  borderBottomColor: colors.border,
+                  borderBottomWidth: i < items.length - 1 ? StyleSheet.hairlineWidth : 0,
+                }]}>
+                  {/* Tick / empty circle — no text, pure View */}
+                  <View style={[g.icon, {
+                    backgroundColor:  item.done ? '#22C55E' : 'transparent',
+                    borderWidth:      item.done ? 0 : 2,
+                    borderColor:      item.done ? 'transparent' : colors.border,
+                  }]}>
+                    {item.done && (
+                      <View style={g.tickInner} />
+                    )}
+                  </View>
+
+                  {/* Text */}
+                  <View style={g.itemText}>
+                    <View style={g.itemTopRow}>
+                      <Text style={[g.itemLabel, {
+                        color:      item.done ? colors.textPrimary : colors.textPrimary,
+                        fontWeight: '700',
+                      }]}>
+                        {item.label}
+                      </Text>
+                      {item.done && (
+                        <View style={[g.doneBadge, { backgroundColor: '#22C55E18' }]}>
+                          <Text style={[g.doneTxt, { color: '#22C55E' }]}>Done</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[g.itemDetail, {
+                      color: item.done ? '#22C55E' : colors.textSecondary,
+                    }]}>
+                      {item.detail}
+                    </Text>
+                    {!item.done && !!item.action && (
+                      <View style={[g.actionPill, { backgroundColor: colors.primary + '15' }]}>
+                        <Text style={[g.itemAction, { color: colors.primary }]}>{item.action}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* What you can do once complete */}
+            <Text style={[g.sectionLabel, { color: colors.textHint }]}>ONCE COMPLETE YOU CAN</Text>
+            <View style={[g.benefitCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {[
+                ['Host events', 'Create unlimited events in Kampala, Jinja and Mukono'],
+                ['Set your venue', 'Choose exact location with Google Maps pin'],
+                ['Manage attendees', 'See who is coming and send updates'],
+                ['Build your reputation', 'Get ratings and grow your audience'],
+              ].map(([title, desc], i) => (
+                <View key={i} style={[g.benefit, { borderBottomColor: colors.border, borderBottomWidth: i < 3 ? StyleSheet.hairlineWidth : 0 }]}>
+                  <View style={[g.benefitDot, { backgroundColor: colors.primary }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[g.benefitTitle, { color: colors.textPrimary }]}>{title}</Text>
+                    <Text style={[g.benefitDesc,  { color: colors.textSecondary }]}>{desc}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* CTA */}
             <TouchableOpacity
-              style={[s.gateBtn, { backgroundColor: colors.primary }]}
+              style={[g.cta, { backgroundColor: colors.primary }]}
               onPress={() => navigation.navigate('Settings')}
             >
-              <Text style={s.gateBtnTxt}>Go to Settings →</Text>
+              <Text style={g.ctaTxt}>Complete Your Profile</Text>
             </TouchableOpacity>
-          </View>
+            <TouchableOpacity
+              style={[g.ctaSecondary, { borderColor: colors.border }]}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={[g.ctaSecTxt, { color: colors.textSecondary }]}>Back to Home</Text>
+            </TouchableOpacity>
+
+          </ScrollView>
         </View>
       </SafeAreaView>
     )
@@ -305,7 +434,7 @@ export default function CreateEventScreen({ navigation }) {
             >
               {posting
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={s.footerBtnTxt}>{step < 3 ? 'Continue →' : '🚀  Post Event'}</Text>
+                : <Text style={s.footerBtnTxt}>{step < 3 ? 'Continue →' : 'Post Event'}</Text>
               }
             </TouchableOpacity>
           </View>
@@ -320,12 +449,46 @@ function GateItem({ done, label, colors }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 }}>
       <View style={{ width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: done ? colors.success : colors.border }}>
-        {done && <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>✓</Text>}
+        {done && <View style={{ width: 8, height: 5, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: '#fff', transform: [{ rotate: '-45deg' }], marginTop: -2 }} />}
       </View>
       <Text style={{ fontSize: 15, color: done ? colors.textPrimary : colors.textSecondary }}>{label}</Text>
     </View>
   )
 }
+
+const g = StyleSheet.create({
+  scroll:       { padding: 16, paddingBottom: 40 },
+  topCard:      { borderRadius: 16, padding: 20, marginBottom: 20 },
+  progressRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  progressTrack:{ flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: 6, borderRadius: 3 },
+  pct:          { fontSize: 15, fontWeight: '900', width: 40, textAlign: 'right' },
+  topTitle:     { fontSize: 17, fontWeight: '900', marginBottom: 6 },
+  topSub:       { fontSize: 13, lineHeight: 19 },
+  sectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
+  list:         { borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: StyleSheet.hairlineWidth },
+  item:         { flexDirection: 'row', alignItems: 'flex-start', padding: 14, gap: 12 },
+  icon:         { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
+  tickInner:    { width: 10, height: 6, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderColor: '#fff', transform: [{ rotate: '-45deg' }], marginTop: -3 },
+  itemText:     { flex: 1 },
+  itemTopRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
+  itemLabel:    { fontSize: 14 },
+  doneBadge:    { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  doneTxt:      { fontSize: 10, fontWeight: '800' },
+  itemDetail:   { fontSize: 12, lineHeight: 17, marginBottom: 3 },
+  itemAction:   { fontSize: 11, fontWeight: '700' },
+  actionPill:   { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 9, paddingVertical: 4, marginTop: 4 },
+  benefitCard:  { borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: StyleSheet.hairlineWidth },
+  benefit:      { flexDirection: 'row', alignItems: 'flex-start', padding: 14, gap: 12 },
+  benefitDot:   { width: 3, height: 28, borderRadius: 2, marginTop: 2, flexShrink: 0 },
+  benefitTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
+  benefitDesc:  { fontSize: 12, lineHeight: 17 },
+  cta:          { borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
+  ctaTxt:       { color: '#fff', fontSize: 15, fontWeight: '800' },
+  ctaSecondary: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1 },
+  ctaSecTxt:    { fontSize: 14, fontWeight: '600' },
+})
+
 
 const s = StyleSheet.create({
   safe:    { flex: 1, alignItems: 'center' },

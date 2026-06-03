@@ -27,6 +27,7 @@ import { formatDateRange, formatUGX, timeFromNow } from '../../utils/formatters'
 import { EVENT_CATEGORIES, APP_URL } from '../../constants/config'
 import { eventsApi }    from '../../services/api'
 import Tap              from '../../components/common/Tap'
+import BackButton       from '../../components/common/BackButton'
 
 const { width, height: SCREEN_H } = Dimensions.get('window')
 const MAX_W      = Math.min(width, 500)
@@ -105,9 +106,9 @@ export default function EventDetailScreen({ navigation, route }) {
   if (!event) {
     return (
       <View style={[s.safe, { backgroundColor: colors.background }]}>
-        <Tap style={{ padding: 20, paddingTop: 20 + insets.top }} onPress={() => navigation.goBack()}>
-          <Text style={[{ color: colors.primary, fontSize: 15, fontWeight: '600' }]}>← Back</Text>
-        </Tap>
+        <BackButton onPress={() => navigation.goBack()} variant="header" style={{ margin: 20, marginTop: 20 + insets.top }} />
+
+        
         <View style={s.center}>
           <Text style={{ color: colors.textSecondary }}>Event not found</Text>
         </View>
@@ -203,9 +204,7 @@ export default function EventDetailScreen({ navigation, route }) {
           style={[s.floatNav, { top: insets.top + 8, opacity: navOpacity }]}
           pointerEvents="box-none"
         >
-          <Tap style={[s.floatBtn, { backgroundColor: 'rgba(0,0,0,0.45)' }]} onPress={() => navigation.goBack()}>
-            <Text style={s.floatBtnTxt}>←</Text>
-          </Tap>
+          <BackButton onPress={() => navigation.goBack()} variant="floating" />
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Tap
               style={[s.floatBtn, { backgroundColor: isLiked ? '#EF444466' : 'rgba(0,0,0,0.45)' }]}
@@ -224,9 +223,7 @@ export default function EventDetailScreen({ navigation, route }) {
         {/* ── Sticky back button (visible when floating fades out) ── */}
         <View style={[s.stickyBack, { top: insets.top + 8 }]} pointerEvents="box-none">
           <Animated.View style={{ opacity: scrollY.interpolate({ inputRange: [60, 100], outputRange: [0, 1], extrapolate: 'clamp' }) }}>
-            <Tap style={[s.floatBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.goBack()}>
-              <Text style={[s.floatBtnTxt, { color: colors.primary }]}>←</Text>
-            </Tap>
+            <BackButton onPress={() => navigation.goBack()} variant="header" />
           </Animated.View>
         </View>
 
