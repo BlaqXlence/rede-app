@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import {
-  View, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, KeyboardAvoidingView, Platform, StyleSheet,
   Switch, Alert, Modal, TextInput,
   ActivityIndicator, Dimensions, TouchableWithoutFeedback,
 } from 'react-native'
@@ -10,6 +10,7 @@ import useThemeStore from '../../store/themeStore'
 import useAuthStore  from '../../store/authStore'
 import { uploadApi } from '../../services/api'
 import { EVENT_CATEGORIES } from '../../constants/config'
+import Tap from '../../components/common/Tap'
 
 const { width } = Dimensions.get('window')
 const MAX_W     = Math.min(width, 500)
@@ -78,9 +79,9 @@ export default function SettingsScreen({ navigation }) {
       <View style={[s.phone, { maxWidth: MAX_W }]}>
 
         <View style={[s.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top:10,bottom:10,left:10,right:10 }}>
+          <Tap onPress={() => navigation.goBack()} hitSlop={{ top:10,bottom:10,left:10,right:10 }}>
             <Text style={[s.back, { color: colors.primary }]}>←</Text>
-          </TouchableOpacity>
+          </Tap>
           <Text style={[s.heading, { color: colors.textPrimary }]}>Settings</Text>
           <View style={{ width: 30 }} />
         </View>
@@ -132,12 +133,12 @@ export default function SettingsScreen({ navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity
+          <Tap
             style={[s.signOutBtn, { backgroundColor: colors.error + '12', borderColor: colors.error }]}
-            onPress={handleSignOut} activeOpacity={0.8}
+            onPress={handleSignOut}
           >
             <Text style={[s.signOutTxt, { color: colors.error }]}>Sign Out</Text>
-          </TouchableOpacity>
+          </Tap>
 
           <Text style={[s.version, { color: colors.textHint }]}>REDE v1.0 · Uganda</Text>
         </ScrollView>
@@ -170,12 +171,12 @@ export default function SettingsScreen({ navigation }) {
               placeholder={editField === 'birthday' ? 'YYYY-MM-DD' : ''}
               placeholderTextColor={colors.textHint}
             />
-            <TouchableOpacity
+            <Tap
               style={[s.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.5 : 1 }]}
               onPress={saveEdit} disabled={saving}
             >
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveTxt}>Save</Text>}
-            </TouchableOpacity>
+            </Tap>
           </View>
         </Modal>
 
@@ -195,7 +196,7 @@ export default function SettingsScreen({ navigation }) {
                 const accent = colors.cat?.[cat.id] || colors.primary
                 const full   = !active && selInts.length >= MAX_INT
                 return (
-                  <TouchableOpacity key={cat.id} disabled={full}
+                  <Tap key={cat.id} disabled={full}
                     style={{ borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 9,
                       backgroundColor: active ? accent : colors.background,
                       borderColor: active ? accent : colors.border, opacity: full ? 0.35 : 1 }}
@@ -203,14 +204,14 @@ export default function SettingsScreen({ navigation }) {
                     <Text style={{ fontSize: 13, fontWeight: '600', color: active ? '#fff' : colors.textSecondary }}>
                       {cat.label}
                     </Text>
-                  </TouchableOpacity>
+                  </Tap>
                 )
               })}
             </View>
-            <TouchableOpacity style={[s.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.5 : 1 }]}
+            <Tap style={[s.saveBtn, { backgroundColor: colors.primary, opacity: saving ? 0.5 : 1 }]}
               onPress={saveInterests} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveTxt}>Save Interests</Text>}
-            </TouchableOpacity>
+            </Tap>
           </View>
         </Modal>
       </View>
@@ -225,15 +226,15 @@ function SectionLabel({ text, colors }) {
 
 function Row({ label, value, onPress, colors, border }) {
   return (
-    <TouchableOpacity
+    <Tap
       style={[{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 15 },
         border && { borderTopWidth: 1, borderTopColor: colors.border }]}
-      onPress={onPress} activeOpacity={0.7}
+      onPress={onPress}
     >
       <Text style={{ flex: 1, fontSize: 15, color: colors.textPrimary }}>{label}</Text>
       {value && <Text style={{ fontSize: 13, color: colors.textSecondary, marginRight: 8, maxWidth: '50%' }} numberOfLines={1}>{value}</Text>}
       <Text style={{ fontSize: 20, color: colors.textHint }}>›</Text>
-    </TouchableOpacity>
+    </Tap>
   )
 }
 

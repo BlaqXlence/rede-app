@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
-  View, Text, TextInput, ScrollView, TouchableOpacity,
+  View, Text, TextInput, ScrollView,
   StyleSheet, ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -9,6 +9,7 @@ import useEventsStore   from '../../store/eventsStore'
 import Avatar           from '../../components/common/Avatar'
 import EventCard        from '../../components/events/EventCard'
 import { authApi }      from '../../services/api'
+import Tap from '../../components/common/Tap'
 
 const { width } = Dimensions.get('window')
 const MAX_W = Math.min(width, 500)
@@ -67,9 +68,9 @@ export default function SearchScreen({ navigation }) {
       <View style={[s.phone, { maxWidth: MAX_W }]}>
 
         <View style={[s.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingRight: 12 }}>
+          <Tap onPress={() => navigation.goBack()} style={{ paddingRight: 12 }}>
             <Text style={[s.back, { color: colors.primary }]}>←</Text>
-          </TouchableOpacity>
+          </Tap>
           <TextInput
             ref={inputRef}
             style={[s.input, { color: colors.textPrimary }]}
@@ -84,16 +85,16 @@ export default function SearchScreen({ navigation }) {
           />
           {loading && <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />}
           {query.length > 0 && !loading && (
-            <TouchableOpacity onPress={() => setQuery('')} style={{ paddingLeft: 8 }}>
+            <Tap onPress={() => setQuery('')} style={{ paddingLeft: 8 }}>
               <Text style={{ color: colors.textHint, fontSize: 18 }}>✕</Text>
-            </TouchableOpacity>
+            </Tap>
           )}
         </View>
 
         {query.length > 0 && (
           <View style={[s.typeBar, { borderBottomColor: colors.border }]}>
             {['events','organisers'].map(t => (
-              <TouchableOpacity key={t}
+              <Tap key={t}
                 style={[s.typeBtn, activeType === t && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
                 onPress={() => setActiveType(t)}
               >
@@ -102,7 +103,7 @@ export default function SearchScreen({ navigation }) {
                     ? `Events${evResults.length > 0 ? ` (${evResults.length})` : ''}`
                     : `Organisers${orgResults.length > 0 ? ` (${orgResults.length})` : ''}`}
                 </Text>
-              </TouchableOpacity>
+              </Tap>
             ))}
           </View>
         )}
@@ -138,11 +139,10 @@ export default function SearchScreen({ navigation }) {
             orgResults.length > 0 ? (
               <View>
                 {orgResults.map(org => (
-                  <TouchableOpacity
+                  <Tap
                     key={org.id}
                     style={[s.orgCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                     onPress={() => navigation.navigate('Organizer', { organizerId: org.id })}
-                    activeOpacity={0.8}
                   >
                     <Avatar uri={org.avatar} name={org.name} size={48} />
                     <View style={{ flex: 1, marginLeft: 12 }}>
@@ -155,7 +155,7 @@ export default function SearchScreen({ navigation }) {
                       </Text>
                     </View>
                     <Text style={{ color: colors.textHint, fontSize: 20 }}>›</Text>
-                  </TouchableOpacity>
+                  </Tap>
                 ))}
               </View>
             ) : !loading ? (

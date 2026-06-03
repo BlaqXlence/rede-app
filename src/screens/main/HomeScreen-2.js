@@ -316,7 +316,6 @@ export default function HomeScreen({ navigation }) {
   const [filterModal, setFilterModal] = useState(false)
   const [currentCity, setCurrentCity] = useState(ALL_CITIES[0])
   const [filters,     setFilters]     = useState(DEFAULT_FILTERS)
-  const [filteredPage, setFilteredPage] = useState(1)
 
   const hasFilter = filters.category !== 'all' || filters.when !== 'All time' || filters.price !== 'Any price'
 
@@ -332,7 +331,6 @@ export default function HomeScreen({ navigation }) {
     return () => clearInterval(interval)
   }, [])
   const hasAnyFilter = hasFilter || currentCity.name !== 'All Uganda'
-  const PAGE_SIZE = 15
 
   async function refresh() {
     setRefreshing(true)
@@ -416,7 +414,7 @@ export default function HomeScreen({ navigation }) {
               )}
               <Tap
                 style={[s.pill, { backgroundColor: colors.error + '15', borderColor: colors.error }]}
-                onPress={() => { setFilters(DEFAULT_FILTERS); setCurrentCity(ALL_CITIES[0]); setFilteredPage(1) }}
+                onPress={() => { setFilters(DEFAULT_FILTERS); setCurrentCity(ALL_CITIES[0]) }}
               >
                 <Text style={[s.pillTxt, { color: colors.error }]}>✕ Clear</Text>
               </Tap>
@@ -429,47 +427,24 @@ export default function HomeScreen({ navigation }) {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
             contentContainerStyle={s.feed}
           >
-            {showFiltered ? (() => {
-              const visibleFiltered = filtered.slice(0, filteredPage * PAGE_SIZE)
-              const hasMoreFiltered = visibleFiltered.length < filtered.length
-              const remaining = filtered.length - visibleFiltered.length
-              return (
-                <View>
-                  <View style={[s.filteredHeader, { borderBottomColor: colors.border }]}>
-                    <Text style={[s.filteredCount, { color: colors.textPrimary }]}>
-                      {filtered.length} {filtered.length === 1 ? 'event' : 'events'} found
-                    </Text>
-                  </View>
-                  {filtered.length > 0 ? (
-                    <>
-                      {visibleFiltered.map(e => (
-                        <FilteredCard key={e.id} event={e} onPress={openEvent} colors={colors} />
-                      ))}
-                      {hasMoreFiltered && (
-                        <Tap
-                          style={[s.showMoreBtn, { borderColor: colors.border }]}
-                          onPress={() => setFilteredPage(p => p + 1)}
-                        >
-                          <Text style={[s.showMoreTxt, { color: colors.primary }]}>
-                            Show {Math.min(PAGE_SIZE, remaining)} more
-                          </Text>
-                        </Tap>
-                      )}
-                      {!hasMoreFiltered && filtered.length > PAGE_SIZE && (
-                        <Text style={[s.allShownTxt, { color: colors.textHint }]}>
-                          All {filtered.length} events shown
-                        </Text>
-                      )}
-                    </>
-                  ) : (
-                    <View style={s.emptyFilter}>
-                      <Text style={[s.emptyTxt, { color: colors.textHint }]}>No events match your filter</Text>
-                      <Text style={[s.emptyHint, { color: colors.textHint }]}>Try adjusting your filters</Text>
-                    </View>
-                  )}
+            {showFiltered ? (
+              // Filtered list — image left, info right (like screenshot)
+              <View>
+                <View style={[s.filteredHeader, { borderBottomColor: colors.border }]}>
+                  <Text style={[s.filteredCount, { color: colors.textPrimary }]}>
+                    {filtered.length} {filtered.length === 1 ? 'event' : 'events'} found
+                  </Text>
                 </View>
-              )
-            })() : (
+                {filtered.length > 0 ? (
+                  filtered.map(e => <FilteredCard key={e.id} event={e} onPress={openEvent} colors={colors} />)
+                ) : (
+                  <View style={s.emptyFilter}>
+                    <Text style={[s.emptyTxt, { color: colors.textHint }]}>No events match your filter</Text>
+                    <Text style={[s.emptyHint, { color: colors.textHint }]}>Try adjusting your filters</Text>
+                  </View>
+                )}
+              </View>
+            ) : (
               <>
                 {/* Happening now */}
                 {(feed.happeningNow?.length > 0) && (
@@ -525,7 +500,7 @@ export default function HomeScreen({ navigation }) {
           <CitySelector
             visible={cityModal}
             currentCity={currentCity}
-            onSelect={city => { setCurrentCity(city); setFilteredPage(1) }}
+            onSelect={city => setCurrentCity(city)}
             onClose={() => setCityModal(false)}
             cities={ALL_CITIES}
           />
@@ -533,7 +508,7 @@ export default function HomeScreen({ navigation }) {
             visible={filterModal}
             onClose={() => setFilterModal(false)}
             filters={filters}
-            onApply={f => { setFilters(f); setFilteredPage(1) }}
+            onApply={setFilters}
           />
         </SafeAreaView>
       </View>
@@ -607,9 +582,6 @@ const s = StyleSheet.create({
   filteredHeader:{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   filteredCount: { fontSize: 15, fontWeight: '700' },
   emptyHint:     { fontSize: 13 },
-  showMoreBtn:   { alignSelf: 'center', borderWidth: 1, borderRadius: 20, paddingHorizontal: 28, paddingVertical: 10, marginVertical: 16, overflow: 'hidden' },
-  showMoreTxt:   { fontSize: 13, fontWeight: '700' },
-  allShownTxt:   { textAlign: 'center', fontSize: 12, paddingVertical: 16 },
   empty:    { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '800' },
   emptyTxt:   { fontSize: 14, textAlign: 'center', paddingHorizontal: 32 },

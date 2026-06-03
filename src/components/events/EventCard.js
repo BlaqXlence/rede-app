@@ -3,11 +3,12 @@
  * Shows: photo, date, heart, category, title, venue + city, price + going
  */
 import React from 'react'
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native'
+import { View, Text, Image, StyleSheet, Dimensions } from 'react-native'
 import useThemeStore  from '../../store/themeStore'
 import useEventsStore from '../../store/eventsStore'
 import { formatUGX, formatDateShort } from '../../utils/formatters'
 import { EVENT_CATEGORIES } from '../../constants/config'
+import Tap from '../common/Tap'
 
 const { width } = Dimensions.get('window')
 const MAX_W = Math.min(width, 500)
@@ -36,9 +37,8 @@ export default function EventCard({ event, onPress, horizontal = false, style })
     : event.location?.address || ''
 
   return (
-    <TouchableOpacity
+    <Tap
       onPress={() => onPress(event)}
-      activeOpacity={0.92}
       style={[styles.card, { width: cardW, backgroundColor: colors.surface, shadowColor: colors.isDark ? '#000' : '#bbb' }, style]}
     >
       {/* Photo */}
@@ -55,7 +55,7 @@ export default function EventCard({ event, onPress, horizontal = false, style })
         <View style={styles.dateBadge}>
           <Text style={styles.dateTxt}>{formatDateShort(event.startTime)}</Text>
         </View>
-        <TouchableOpacity
+        <Tap
           style={styles.heart}
           onPress={e => { e.stopPropagation?.(); toggleLike(event.id) }}
           hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
@@ -63,7 +63,7 @@ export default function EventCard({ event, onPress, horizontal = false, style })
           <Text style={[styles.heartIcon, { color: liked ? '#EF4444' : '#fff' }]}>
             {liked ? '♥' : '♡'}
           </Text>
-        </TouchableOpacity>
+        </Tap>
         {event.isNow && (
           <View style={[styles.liveBadge, { backgroundColor: colors.error }]}>
             <View style={styles.liveDot} />
@@ -103,7 +103,7 @@ export default function EventCard({ event, onPress, horizontal = false, style })
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Tap>
   )
 }
 

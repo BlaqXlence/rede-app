@@ -8,7 +8,7 @@
  */
 import React, { useState } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity,
+  View, Text, ScrollView,
   StyleSheet, Dimensions, Alert, Image,
 } from 'react-native'
 import { SafeAreaView }  from 'react-native-safe-area-context'
@@ -20,6 +20,7 @@ import Avatar            from '../../components/common/Avatar'
 import { uploadApi }     from '../../services/api'
 import { formatDateShort, formatUGX } from '../../utils/formatters'
 import { EVENT_CATEGORIES } from '../../constants/config'
+import Tap from '../../components/common/Tap'
 
 const { width } = Dimensions.get('window')
 const MAX_W     = Math.min(width, 500)
@@ -32,7 +33,7 @@ function GridCard({ event, onPress, colors }) {
   const cat    = EVENT_CATEGORIES.find(c => c.id === event.category)
   const venue  = [event.location?.venueName || event.location?.name, event.location?.city].filter(Boolean).join(', ')
   return (
-    <TouchableOpacity onPress={() => onPress(event)} activeOpacity={0.85}
+    <Tap onPress={() => onPress(event)}
       style={[gc.card, { width: GRID_CARD, backgroundColor: colors.surface }]}>
       <Image source={{ uri: event.coverImage }} style={gc.img} resizeMode="cover" />
       <View style={[gc.datePill]}>
@@ -54,7 +55,7 @@ function GridCard({ event, onPress, colors }) {
           <Text style={[gc.going, { color: colors.textHint }]}>{event.attendeeCount || 0} went</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Tap>
   )
 }
 
@@ -66,7 +67,7 @@ function HorizCard({ event, onPress, colors }) {
   const venue  = [event.location?.venueName || event.location?.name, event.location?.city].filter(Boolean).join(', ')
 
   return (
-    <TouchableOpacity onPress={() => onPress(event)} activeOpacity={0.86}
+    <Tap onPress={() => onPress(event)}
       style={[hc.card, { backgroundColor: colors.surface }]}>
       <View>
         <Image source={{ uri: event.coverImage }} style={hc.img} resizeMode="cover" />
@@ -89,7 +90,7 @@ function HorizCard({ event, onPress, colors }) {
           <Text style={[hc.price, { color: event.entryFee === 0 ? colors.success : colors.primary }]}>
             {formatUGX(event.entryFee)}
           </Text>
-          <TouchableOpacity
+          <Tap
             onPress={e => { e.stopPropagation?.(); toggleLike(event.id) }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={[hc.heartBtn, {
@@ -97,13 +98,13 @@ function HorizCard({ event, onPress, colors }) {
               borderColor:     liked ? '#EF4444'   : colors.primary,
             }]}
           >
-            <Text style={{ fontSize: 15, color: liked ? '#EF4444' : colors.primary }}>
+            <Text style={{ fontSize: 11, color: liked ? '#EF4444' : colors.primary }}>
               {liked ? '♥' : '♡'}
             </Text>
-          </TouchableOpacity>
+          </Tap>
         </View>
       </View>
-    </TouchableOpacity>
+    </Tap>
   )
 }
 
@@ -128,14 +129,14 @@ function Section({ title, events, renderItem, colors, emptyMsg }) {
       </View>
       {visible.map(e => renderItem(e))}
       {hasMore && (
-        <TouchableOpacity
+        <Tap
           style={[sec.seeAllBtn, { borderColor: colors.border }]}
           onPress={() => setExpanded(x => !x)}
         >
           <Text style={[sec.seeAllTxt, { color: colors.primary }]}>
             {expanded ? 'Show less ↑' : `Show all ${events.length} ↓`}
           </Text>
-        </TouchableOpacity>
+        </Tap>
       )}
     </View>
   )
@@ -172,14 +173,14 @@ function GridSection({ title, events, onPress, colors, emptyMsg }) {
         ))}
       </View>
       {hasMore && (
-        <TouchableOpacity
+        <Tap
           style={[sec.seeAllBtn, { borderColor: colors.border }]}
           onPress={() => setExpanded(x => !x)}
         >
           <Text style={[sec.seeAllTxt, { color: colors.primary }]}>
             {expanded ? 'Show less ↑' : `Show all ${events.length} ↓`}
           </Text>
-        </TouchableOpacity>
+        </Tap>
       )}
     </View>
   )
@@ -193,9 +194,9 @@ function TabEmpty({ icon, title, sub, btnLabel, onBtn, colors }) {
       <Text style={[em.title, { color: colors.textPrimary }]}>{title}</Text>
       <Text style={[em.sub,   { color: colors.textHint    }]}>{sub}</Text>
       {!!btnLabel && (
-        <TouchableOpacity style={[em.btn, { backgroundColor: colors.primary }]} onPress={onBtn}>
+        <Tap style={[em.btn, { backgroundColor: colors.primary }]} onPress={onBtn}>
           <Text style={em.btnTxt}>{btnLabel}</Text>
-        </TouchableOpacity>
+        </Tap>
       )}
     </View>
   )
@@ -286,12 +287,16 @@ export default function ProfileScreen({ navigation }) {
     )
     return (
       <>
-        <Section title="My upcoming events" events={myUpcoming} colors={colors}
-          emptyMsg={{ title: 'No upcoming events created', sub: '' }}
-          renderItem={e => <HorizCard key={e.id} event={e} onPress={openEvent} colors={colors} />} />
-        <Section title="Events I'm joining" events={joiningUpcoming} colors={colors}
-          emptyMsg={{ title: 'Not joining any events', sub: '' }}
-          renderItem={e => <HorizCard key={e.id} event={e} onPress={openEvent} colors={colors} />} />
+        {myUpcoming.length > 0 && (
+          <Section title="My upcoming events" events={myUpcoming} colors={colors}
+            emptyMsg={{ title: '', sub: '' }}
+            renderItem={e => <HorizCard key={e.id} event={e} onPress={openEvent} colors={colors} />} />
+        )}
+        {joiningUpcoming.length > 0 && (
+          <Section title="Events I'm joining" events={joiningUpcoming} colors={colors}
+            emptyMsg={{ title: '', sub: '' }}
+            renderItem={e => <HorizCard key={e.id} event={e} onPress={openEvent} colors={colors} />} />
+        )}
       </>
     )
   }
@@ -315,21 +320,21 @@ export default function ProfileScreen({ navigation }) {
           <View style={[s.headerCard, { backgroundColor: colors.surface }]}>
 
             {/* Settings — top right, bigger */}
-            <TouchableOpacity
+            <Tap
               style={[s.gearBtn, { backgroundColor: colors.background }]}
               onPress={() => navigation.navigate('Settings')}
             >
-              <Text style={[s.gearIcon, { color: colors.textSecondary }]}>⚙︎</Text>
-            </TouchableOpacity>
+              <Text style={[s.gearIcon, { color: colors.textSecondary }]}>⚙</Text>
+            </Tap>
 
             {/* Avatar + Stats */}
             <View style={s.avatarStatsRow}>
-              <TouchableOpacity onPress={pickPhoto} activeOpacity={0.82} style={s.avatarWrap}>
+              <Tap onPress={pickPhoto} style={s.avatarWrap}>
                 <Avatar uri={user.avatar} name={user.name || user.phone} size={82} />
                 <View style={[s.editBadge, { backgroundColor: colors.primary }]}>
                   <Text style={s.editBadgeTxt}>✎</Text>
                 </View>
-              </TouchableOpacity>
+              </Tap>
 
               <View style={s.statsBlock}>
                 {[
@@ -392,14 +397,14 @@ export default function ProfileScreen({ navigation }) {
           {/* ── Tabs ── */}
           <View style={[s.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
             {TABS.map(t => (
-              <TouchableOpacity key={t}
+              <Tap key={t}
                 style={[s.tabBtn, tab === t && [s.tabActive, { borderBottomColor: colors.primary }]]}
                 onPress={() => setTab(t)}
               >
                 <Text style={[s.tabTxt, { color: tab === t ? colors.primary : colors.textSecondary }]}>
                   {t}
                 </Text>
-              </TouchableOpacity>
+              </Tap>
             ))}
           </View>
 
@@ -434,8 +439,8 @@ const s = StyleSheet.create({
   page:   { flex: 1, width: '100%' },
 
   headerCard:     { paddingTop: 50, paddingHorizontal: PAD, paddingBottom: 0, marginBottom: 2 },
-  gearBtn:        { position: 'absolute', top: 14, right: 14, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  gearIcon:       { fontSize: 26 },
+  gearBtn:        { position: 'absolute', top: 14, right: 14, width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  gearIcon:       { fontSize: 30 },
 
   avatarStatsRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
   avatarWrap:     { position: 'relative' },
@@ -480,12 +485,12 @@ const gc = StyleSheet.create({
 })
 
 const hc = StyleSheet.create({
-  card:    { flexDirection: 'row', marginHorizontal: PAD, marginVertical: 5, borderRadius: 14, overflow: 'hidden', elevation: 2, shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
-  img:     { width: 108, height: 120 },
+  card:    { flexDirection: 'row', marginHorizontal: PAD, marginVertical: 4, borderRadius: 12, overflow: 'hidden', elevation: 2, shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  img:     { width: 96, height: 94 },
   live:    { position: 'absolute', bottom: 6, left: 6, flexDirection: 'row', alignItems: 'center', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, gap: 3 },
   liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#fff' },
   liveTxt: { color: '#fff', fontSize: 8, fontWeight: '800' },
-  info:    { flex: 1, padding: 12, justifyContent: 'space-between' },
+  info:    { flex: 1, padding: 10, justifyContent: 'space-between' },
   catPill: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4 },
   catTxt:  { fontSize: 9, fontWeight: '800' },
   title:   { fontSize: 13, fontWeight: '800', lineHeight: 17, marginBottom: 3 },
@@ -493,7 +498,7 @@ const hc = StyleSheet.create({
   venue:   { fontSize: 10, marginBottom: 6 },
   bottom:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   price:   { fontSize: 13, fontWeight: '900' },
-  heartBtn:{ width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  heartBtn:{ width: 26, height: 26, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 })
 
 const sec = StyleSheet.create({

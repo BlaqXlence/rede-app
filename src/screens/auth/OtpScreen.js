@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, StyleSheet,
   Alert, Dimensions, TextInput, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore from '../../store/themeStore'
 import useAuthStore  from '../../store/authStore'
+import Tap from '../../components/common/Tap'
 
 const LEN        = 6
 const WAIT_TIMES = [60, 120, 180]
@@ -96,9 +97,9 @@ export default function OtpScreen({ navigation, route }) {
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <View style={[s.container, { maxWidth: MAX_W }]}>
 
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.back}>
+        <Tap onPress={() => navigation.goBack()} style={s.back}>
           <Text style={[s.backTxt, { color: colors.primary }]}>←</Text>
-        </TouchableOpacity>
+        </Tap>
 
         <Text style={[s.h1, { color: colors.textPrimary }]}>Enter the code</Text>
         <Text style={[s.sub, { color: colors.textSecondary }]}>
@@ -126,10 +127,9 @@ export default function OtpScreen({ navigation, route }) {
         />
 
         {/* Visual boxes */}
-        <TouchableOpacity
+        <Tap
           style={s.boxes}
           onPress={() => inputRef.current?.focus()}
-          activeOpacity={1}
         >
           {digits.map((d, i) => (
             <View
@@ -148,9 +148,9 @@ export default function OtpScreen({ navigation, route }) {
               <Text style={[s.digit, { color: colors.textPrimary }]}>{d}</Text>
             </View>
           ))}
-        </TouchableOpacity>
+        </Tap>
 
-        <TouchableOpacity
+        <Tap
           onPress={resend}
           disabled={timer > 0 || sending}
           style={s.resendBtn}
@@ -158,7 +158,7 @@ export default function OtpScreen({ navigation, route }) {
           <Text style={[s.resendTxt, { color: timer > 0 || sending ? colors.textHint : colors.primary }]}>
             {sending ? 'Sending...' : timer > 0 ? `Resend in ${fmt(timer)}` : 'Resend code'}
           </Text>
-        </TouchableOpacity>
+        </Tap>
 
         {timer > 0 && (
           <Text style={[s.helpTxt, { color: colors.textHint }]}>
@@ -168,23 +168,22 @@ export default function OtpScreen({ navigation, route }) {
           </Text>
         )}
 
-        <TouchableOpacity
+        <Tap
           style={[s.btn, {
             backgroundColor: code.length === LEN && !loading
               ? colors.primary : colors.border,
           }]}
           onPress={() => verify()}
           disabled={code.length < LEN || loading}
-          activeOpacity={0.87}
         >
           <Text style={s.btnTxt}>
             {loading ? 'Verifying...' : 'Verify →'}
           </Text>
-        </TouchableOpacity>
+        </Tap>
 
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.wrongBtn}>
+        <Tap onPress={() => navigation.goBack()} style={s.wrongBtn}>
           <Text style={[s.wrongTxt, { color: colors.textHint }]}>Wrong number? Go back</Text>
-        </TouchableOpacity>
+        </Tap>
 
       </View>
     </SafeAreaView>

@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react'
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, StyleSheet,
   Alert, Dimensions, TextInput, KeyboardAvoidingView,
   Platform, ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import useThemeStore from '../../store/themeStore'
 import useAuthStore  from '../../store/authStore'
+import Tap from '../../components/common/Tap'
 
 const { width } = Dimensions.get('window')
 const MAX_W = Math.min(width, 500)
@@ -42,9 +43,9 @@ export default function PhoneScreen({ navigation }) {
           contentContainerStyle={[s.inner, { maxWidth: MAX_W, alignSelf: 'center', width: '100%' }]}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.back}>
+          <Tap onPress={() => navigation.goBack()} style={s.back}>
             <Text style={[s.backTxt, { color: colors.primary }]}>←</Text>
-          </TouchableOpacity>
+          </Tap>
 
           <Text style={[s.heading, { color: colors.textPrimary }]}>Your phone number</Text>
           <Text style={[s.sub, { color: colors.textSecondary }]}>
@@ -52,10 +53,9 @@ export default function PhoneScreen({ navigation }) {
           </Text>
 
           {/* Phone input row */}
-          <TouchableOpacity
+          <Tap
             style={[s.inputRow, { backgroundColor: colors.surface, borderColor: isValid ? colors.primary : colors.border }]}
             onPress={() => inputRef.current?.focus()}
-            activeOpacity={1}
           >
             <View style={[s.prefix, { borderRightColor: colors.border }]}>
               <Text style={[s.prefixTxt, { color: colors.textPrimary }]}>🇺🇬  +256</Text>
@@ -74,20 +74,19 @@ export default function PhoneScreen({ navigation }) {
               underlineColorAndroid="transparent"
               onSubmitEditing={handleSend}
             />
-          </TouchableOpacity>
+          </Tap>
 
           <Text style={[s.hint, { color: colors.textHint }]}>
             Uganda numbers only. Enter 9 digits after +256.
           </Text>
 
-          <TouchableOpacity
+          <Tap
             style={[s.btn, { backgroundColor: isValid && !loading ? colors.primary : colors.border }]}
             onPress={handleSend}
             disabled={!isValid || loading}
-            activeOpacity={0.87}
           >
             <Text style={s.btnTxt}>{loading ? 'Sending...' : 'Send Code →'}</Text>
-          </TouchableOpacity>
+          </Tap>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
