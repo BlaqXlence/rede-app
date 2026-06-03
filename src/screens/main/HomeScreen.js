@@ -463,14 +463,14 @@ export default function HomeScreen({ navigation }) {
                       )}
                     </>
                   ) : (
-                    {isLoadingEvents ? (
+                    isLoadingEvents ? (
                       <ListScreenSkeleton count={6} />
                     ) : (
                       <View style={s.emptyFilter}>
                         <Text style={[s.emptyTxt, { color: colors.textHint }]}>No events match your filter</Text>
                         <Text style={[s.emptyHint, { color: colors.textHint }]}>Try adjusting your filters</Text>
                       </View>
-                    )}
+                    )
                   )}
                 </View>
               )
