@@ -74,7 +74,7 @@ export default function SettingsScreen({ navigation }) {
   const fieldLabel = { nickname: 'Edit Nickname', first_name: 'Edit First Name', last_name: 'Edit Last Name', email: 'Edit Email' }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[s.phone, { maxWidth: MAX_W }]}>
 

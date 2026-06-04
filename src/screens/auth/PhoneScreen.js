@@ -37,7 +37,7 @@ export default function PhoneScreen({ navigation }) {
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top','bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={[s.inner, { maxWidth: MAX_W, alignSelf: 'center', width: '100%' }]}

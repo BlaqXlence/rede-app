@@ -200,7 +200,7 @@ export default function ProfileSetupScreen({ navigation }) {
   const TOTAL = 4
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]} edges={['top','bottom']}>
         <View style={[s.phone, { maxWidth: MAX_W }]}>
 

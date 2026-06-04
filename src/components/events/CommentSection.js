@@ -238,7 +238,7 @@ export default function CommentSection({ eventId, isOrganizer, justJoined }) {
 
       {/* Input row */}
       {canComment ? (
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={80}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
           <View style={[st.inputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
             <Avatar uri={user?.avatar} name={user?.name} size={28} />
             <TextInput
