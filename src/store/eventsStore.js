@@ -31,6 +31,7 @@ const useEventsStore = create((set, get) => ({
   recentSearches:   [],
   selectedCategory: 'all',
   isLoadingEvents:  false,
+  selectedCity:     null,
 
   // Load persisted attending + liked on startup
   loadPersistedData: async () => {
@@ -262,6 +263,8 @@ const useEventsStore = create((set, get) => ({
     set({ likedEvents: updated })
     await AsyncStorage.setItem(LIKED_KEY, JSON.stringify(updated))
   },
+
+  setSelectedCity: (city) => set({ selectedCity: city }),
 
   loadLiked: async () => {
     const saved = await AsyncStorage.getItem(LIKED_KEY)

@@ -9,7 +9,9 @@ import useThemeStore  from '../../store/themeStore'
 import useEventsStore from '../../store/eventsStore'
 import { eventsApi }  from '../../services/api'
 import { DatePicker, TimePicker } from '../../components/common/DateTimePicker'
-import PhotoUpload    from '../../components/common/PhotoUpload'
+import PhotoUpload       from '../../components/common/PhotoUpload'
+import LocationPicker    from '../../components/common/LocationPicker'
+import BackButton        from '../../components/common/BackButton'
 
 const { width } = Dimensions.get('window')
 const MAX_W = Math.min(width, 500)
@@ -32,6 +34,15 @@ export default function EditEventScreen({ navigation, route }) {
   const [endTime,      setEndTime]      = useState(toTime(existingEnd))
   const [photoUri,     setPhotoUri]     = useState(event.coverImage || null)
   const [saving,       setSaving]       = useState(false)
+  const [location,     setLocation]     = useState(
+    event.location ? {
+      venueName: event.location.venueName || event.location.name || '',
+      area:      event.location.area  || '',
+      city:      event.location.city  || '',
+      lat:       event.location.lat   || null,
+      lng:       event.location.lng   || null,
+    } : null
+  )
 
   const isDirty = useMemo(() => (
     title.trim()       !== (event.title       || '').trim() ||
@@ -40,7 +51,8 @@ export default function EditEventScreen({ navigation, route }) {
     date               !== toDate(existingStart) ||
     startTime          !== toTime(existingStart) ||
     endTime            !== toTime(existingEnd)   ||
-    photoUri           !== (event.coverImage || null)
+    photoUri           !== (event.coverImage || null) ||
+    JSON.stringify(location) !== JSON.stringify(event.location)
   ), [title, description, maxAttendees, date, startTime, endTime, photoUri])
 
   async function handleSave() {
@@ -59,6 +71,14 @@ export default function EditEventScreen({ navigation, route }) {
         start_time:    new Date(`${date}T${startTime}:00`).toISOString(),
         end_time:      new Date(`${date}T${endTime}:00`).toISOString(),
         cover_image:   photoUri || event.coverImage,
+        location:      location ? {
+          venueName: location.venueName,
+          name:      location.venueName,
+          area:      location.area,
+          city:      location.city,
+          lat:       location.lat,
+          lng:       location.lng,
+        } : event.location,
       })
       const updated = events.map(e => e.id === event.id ? { ...e, ...res.event } : e)
       setEventsLocal(updated)
@@ -74,9 +94,7 @@ export default function EditEventScreen({ navigation, route }) {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
 
           <View style={[s.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={[s.back, { color: colors.primary }]}>← Back</Text>
-            </TouchableOpacity>
+            <BackButton onPress={() => navigation.goBack()} variant="plain" />
             <Text style={[s.heading, { color: colors.textPrimary }]}>Edit Event</Text>
             <TouchableOpacity
               onPress={handleSave}

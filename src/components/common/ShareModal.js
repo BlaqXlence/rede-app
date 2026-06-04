@@ -13,8 +13,10 @@ export default function ShareModal({ visible, onClose, event }) {
   const { colors } = useThemeStore()
   if (!event) return null
 
-  const url  = `${APP_URL || 'https://rede-app.netlify.app'}?event=${event.id}`
-  const text = `Check out ${event.title} on REDE!\n${url}`
+  const webUrl   = `https://rede-app.netlify.app/event/${event.id}`
+  const deepLink = `rede://event/${event.id}`
+  const url      = webUrl
+  const text     = `Check out "${event.title}" on REDE!\n${webUrl}`
 
   async function shareNative() {
     try { await Share.share({ message: text, url }) }

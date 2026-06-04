@@ -327,7 +327,7 @@ const ALL_CITIES = [{ name: 'All Uganda', lat: 1.3733, lng: 32.2903 }, ...UGANDA
 export default function HomeScreen({ navigation }) {
   const { user }   = useAuthStore()
   const { colors }  = useThemeStore()
-  const { feed, requestLocation, isLoadingEvents } = useEventsStore()
+  const { feed, requestLocation, isLoadingEvents, setSelectedCity } = useEventsStore()
   const { unread }                                  = useNotificationStore()
 
   const [refreshing,  setRefreshing]  = useState(false)
@@ -564,7 +564,7 @@ export default function HomeScreen({ navigation }) {
           <CitySelector
             visible={cityModal}
             currentCity={currentCity}
-            onSelect={city => { setCurrentCity(city); setFilteredPage(1) }}
+            onSelect={city => { setCurrentCity(city); setFilteredPage(1); setSelectedCity(city) }}
             onClose={() => setCityModal(false)}
             cities={ALL_CITIES}
           />

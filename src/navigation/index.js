@@ -166,7 +166,23 @@ export default function RootNavigator({ navRef }) {
   }
 
   return (
-    <NavigationContainer ref={navRef} theme={navTheme}>
+    <NavigationContainer
+      ref={navRef}
+      theme={navTheme}
+      linking={{
+        prefixes: ['rede://', 'https://rede-app.netlify.app'],
+        config: {
+          screens: {
+            Tabs: {
+              screens: {
+                Home: 'home',
+              },
+            },
+            EventDetail: 'event/:eventId',
+          },
+        },
+      }}
+    >
       {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   )

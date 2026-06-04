@@ -46,6 +46,9 @@
               "scheme": "https",
               "host": "rede-app.netlify.app",
               "pathPrefix": "/"
+            },
+            {
+              "scheme": "rede"
             }
           ],
           "category": [
@@ -90,6 +93,7 @@
       "eas": {
         "projectId": "6540c859-acf6-4b96-b6b3-aced68fcc87f"
       }
-    }
+    },
+    "scheme": "rede"
   }
 }

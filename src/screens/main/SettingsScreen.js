@@ -33,7 +33,13 @@ export default function SettingsScreen({ navigation }) {
   }
 
   async function saveEdit() {
-    if (!editValue.trim()) return
+    if (!editValue.trim()) { Alert.alert('Cannot be empty'); return }
+    if (editField === 'nickname' && editValue.trim().length < 2) {
+      Alert.alert('Nickname must be at least 2 characters'); return
+    }
+    if (editField === 'email' && !editValue.includes('@')) {
+      Alert.alert('Enter a valid email address'); return
+    }
     setSaving(true)
     try {
       await updateProfile({ [editField]: editValue.trim() })
@@ -103,8 +109,8 @@ export default function SettingsScreen({ navigation }) {
           <SectionLabel text="IDENTITY" colors={colors} />
           <View style={[s.card, { backgroundColor: colors.surface }]}>
             <Row label="Nickname"   value={user?.nickname   || '—'} onPress={() => openEdit('nickname',   user?.nickname)}   colors={colors} />
-            <Row label="First Name" value={user?.firstName  || '—'} onPress={() => openEdit('first_name', user?.firstName)}  colors={colors} border />
-            <Row label="Last Name"  value={user?.lastName   || '—'} onPress={() => openEdit('last_name',  user?.lastName)}   colors={colors} border />
+            <Row label="First Name" value={user?.firstName  || user?.first_name  || '—'} onPress={() => openEdit('first_name', user?.firstName || user?.first_name)}  colors={colors} border />
+            <Row label="Last Name"  value={user?.lastName   || user?.last_name   || '—'} onPress={() => openEdit('last_name',  user?.lastName  || user?.last_name)}   colors={colors} border />
             <Row label="Email"      value={user?.email      || 'Not set'} onPress={() => openEdit('email', user?.email)} colors={colors} border />
           </View>
 
