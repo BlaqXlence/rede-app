@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "952517187161",
+    "project_id": "rede-b14c5",
+    "storage_bucket": "rede-b14c5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952517187161:android:a7a4bfb8164d9b87900348",
+        "android_client_info": {
+          "package_name": "ug.rede.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLezewcBHC9S856Jr-_PcIs6f3a_cy7d8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
