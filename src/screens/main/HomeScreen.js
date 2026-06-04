@@ -14,6 +14,7 @@ import {
 import { SafeAreaView }   from 'react-native-safe-area-context'
 import { Svg, Path, Circle } from 'react-native-svg'
 import useThemeStore      from '../../store/themeStore'
+import useNotificationStore from '../../store/notificationStore'
 import useEventsStore     from '../../store/eventsStore'
 import useAuthStore      from '../../store/authStore'
 import EventCard, { CARD_WIDTH_HORIZ } from '../../components/events/EventCard'
@@ -87,15 +88,6 @@ function FilterIcon({ color }) {
     </Svg>
   )
 }
-function BellIcon({ color }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <Path d="M13.73 21a2 2 0 01-3.46 0" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-    </Svg>
-  )
-}
-
 /* ── Skeleton ───────────────────────────────────────────────── */
 function Skeleton({ colors }) {
   return (
@@ -115,6 +107,31 @@ const sk = StyleSheet.create({
   body: { padding: 10, gap: 8 },
   line: { height: 10, borderRadius: 4 },
 })
+
+
+function BellIcon({ color, unread, colors }) {
+  return (
+    <View style={{ position: 'relative' }}>
+      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+        <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <Path d="M13.73 21a2 2 0 0 1-3.46 0" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </Svg>
+      {unread > 0 && (
+        <View style={{
+          position: 'absolute', top: -4, right: -4,
+          backgroundColor: colors.primary,
+          borderRadius: 8, minWidth: 16, height: 16,
+          alignItems: 'center', justifyContent: 'center',
+          paddingHorizontal: 3,
+        }}>
+          <Text style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>
+            {unread > 99 ? '99+' : unread}
+          </Text>
+        </View>
+      )}
+    </View>
+  )
+}
 
 /* ── Section ────────────────────────────────────────────────── */
 const GUTTER  = 12
@@ -311,6 +328,7 @@ export default function HomeScreen({ navigation }) {
   const { user }   = useAuthStore()
   const { colors }  = useThemeStore()
   const { feed, requestLocation, isLoadingEvents } = useEventsStore()
+  const { unread }                                  = useNotificationStore()
 
   const [refreshing,  setRefreshing]  = useState(false)
   const [cityModal,   setCityModal]   = useState(false)
@@ -351,13 +369,34 @@ export default function HomeScreen({ navigation }) {
     return allEvents.filter(e => passes(e, currentCity, filters))
   }, [allEvents, currentCity, filters])
 
-  const showFiltered = hasAnyFilter
+  // City selection keeps normal home layout — only category/when/price trigger list view
+  const hasFilterOnly = hasFilter  // category/when/price active
+  const hasCityOnly   = currentCity.name !== 'All Uganda' && !hasFilter
+  const showFiltered  = hasFilter  // list view only when category/when/price active
 
   // For category sections — also apply city filter
   function sectionEvents(categoryId) {
     const base = feed.byCategory?.[categoryId] || []
+    // Always filter by city if one is selected
+    const cityFiltered = currentCity.name === 'All Uganda'
+      ? base
+      : base.filter(e => {
+          const city = e.location?.city || e.location?.name || ''
+          return city.toLowerCase().includes(currentCity.name.toLowerCase())
+        })
+    // Apply category/when/price filters only when active
+    if (!hasFilter) return cityFiltered
+    return cityFiltered.filter(e => passes(e, currentCity, filters))
+  }
+
+  // Happening now — city filtered
+  function happeningNowEvents() {
+    const base = feed.happeningNow || []
     if (currentCity.name === 'All Uganda') return base
-    return base.filter(e => passes(e, currentCity, DEFAULT_FILTERS))
+    return base.filter(e => {
+      const city = e.location?.city || e.location?.name || ''
+      return city.toLowerCase().includes(currentCity.name.toLowerCase())
+    })
   }
 
   return (
@@ -379,25 +418,20 @@ export default function HomeScreen({ navigation }) {
                 <SearchIcon color={colors.textSecondary} />
               </Tap>
               <Tap
-                style={[s.iconBtn, { backgroundColor: hasAnyFilter ? colors.primary : colors.surface }]}
+                style={[s.iconBtn, { backgroundColor: hasFilter ? colors.primary : colors.surface }]}
                 onPress={() => setFilterModal(true)}
               >
-                <FilterIcon color={hasAnyFilter ? '#fff' : colors.textSecondary} />
+                <FilterIcon color={hasFilter ? '#fff' : colors.textSecondary} />
               </Tap>
               <Tap style={[s.iconBtn, { backgroundColor: colors.surface }]} onPress={() => {}}>
-                <BellIcon color={colors.textSecondary} />
+                <BellIcon color={colors.textSecondary} unread={unread} colors={colors} />
               </Tap>
             </View>
           </View>
 
-          {/* Active filter pills */}
-          {hasAnyFilter && (
+          {/* Active filter pills — only category/when/price, never city */}
+          {hasFilter && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pills}>
-              {currentCity.name !== 'All Uganda' && (
-                <View style={[s.pill, { backgroundColor: colors.primary + '20', borderColor: colors.primary }]}>
-                  <Text style={[s.pillTxt, { color: colors.primary }]}>{currentCity.name}</Text>
-                </View>
-              )}
               {filters.category !== 'all' && (
                 <View style={[s.pill, { backgroundColor: colors.primary + '20', borderColor: colors.primary }]}>
                   <Text style={[s.pillTxt, { color: colors.primary }]}>
@@ -417,9 +451,9 @@ export default function HomeScreen({ navigation }) {
               )}
               <Tap
                 style={[s.pill, { backgroundColor: colors.error + '15', borderColor: colors.error }]}
-                onPress={() => { setFilters(DEFAULT_FILTERS); setCurrentCity(ALL_CITIES[0]); setFilteredPage(1) }}
+                onPress={() => { setFilters(DEFAULT_FILTERS); setFilteredPage(1) }}
               >
-                <Text style={[s.pillTxt, { color: colors.error }]}>✕ Clear</Text>
+                <Text style={[s.pillTxt, { color: colors.error }]}>Clear filters</Text>
               </Tap>
             </ScrollView>
           )}
@@ -477,7 +511,7 @@ export default function HomeScreen({ navigation }) {
             })() : (
               <>
                 {/* Happening now */}
-                {(feed.happeningNow?.length > 0) && (
+                {(happeningNowEvents().length > 0) && (
                   <View style={s.section}>
                     <View style={s.sectionHead}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -490,7 +524,7 @@ export default function HomeScreen({ navigation }) {
                     </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}
                         contentContainerStyle={{ paddingRight: 16 }}>
-                        {feed.happeningNow.map(item => (
+                        {happeningNowEvents().map(item => (
                           <EventCard key={item.id} event={item} onPress={openEvent} horizontal style={{ marginRight: 12 }} />
                         ))}
                       </ScrollView>

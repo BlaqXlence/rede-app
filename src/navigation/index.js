@@ -21,7 +21,8 @@ import CategoryEventsScreen from '../screens/main/CategoryEventsScreen'
 import EditEventScreen    from '../screens/main/EditEventScreen'
 import SearchScreen       from '../screens/main/SearchScreen'
 import OrganizerScreen    from '../screens/main/OrganizerScreen'
-import SettingsScreen     from '../screens/main/SettingsScreen'
+import SettingsScreen         from '../screens/main/SettingsScreen'
+import NotificationsScreen    from '../screens/main/NotificationsScreen'
 
 const Auth  = createNativeStackNavigator()
 const Stack = createNativeStackNavigator()
@@ -98,6 +99,7 @@ function MainNavigator() {
         options={{ presentation: 'modal', animation: 'fade_from_bottom' }} />
       <Stack.Screen name="Organizer"      component={OrganizerScreen} />
       <Stack.Screen name="Settings"       component={SettingsScreen} />
+      <Stack.Screen name="Notifications"   component={NotificationsScreen} />
     </Stack.Navigator>
   )
 }
@@ -117,11 +119,10 @@ function getEventIdFromUrl() {
   return null // Deep links handled via Expo Linking on native
 }
 
-export default function RootNavigator() {
+export default function RootNavigator({ navRef }) {
   const { isAuthenticated, isLoading, initialize } = useAuthStore()
   const { requestLocation, loadRecentSearches, loadPersistedData } = useEventsStore()
   const { colors, initialize: initTheme } = useThemeStore()
-  const navRef = useRef(null)
 
   useEffect(() => {
     initialize()
@@ -165,7 +166,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme} ref={navRef}>
+    <NavigationContainer ref={navRef} theme={navTheme}>
       {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   )

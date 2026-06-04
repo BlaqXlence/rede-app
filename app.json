@@ -58,7 +58,8 @@
       "notification": {
         "icon": "./assets/notification-icon.png",
         "color": "#FF6600"
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -76,6 +77,13 @@
         {
           "photosPermission": "REDE needs access to your photos for profile and event images.",
           "cameraPermission": "REDE needs your camera for photos."
+        }
+      ],
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "production",
+          "devTeam": ""
         }
       ]
     ],

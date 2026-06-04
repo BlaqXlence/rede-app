@@ -16,7 +16,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://web-production-e695b.up.railway.app/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://web-production-e695b.up.railway.app/api/v1",
+        "EXPO_PUBLIC_ONE_SIGNAL_APP_ID": "k269e51a-372d-47cc-94ce-02a1ed6dfyct"
       }
     },
     "production": {
@@ -24,7 +25,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://web-production-e695b.up.railway.app/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://web-production-e695b.up.railway.app/api/v1",
+        "EXPO_PUBLIC_ONE_SIGNAL_APP_ID": "k269e51a-372d-47cc-94ce-02a1ed6dfyct"
       }
     }
   },

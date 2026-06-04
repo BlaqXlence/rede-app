@@ -15,6 +15,7 @@ import {
 } from 'react-native'
 import { SafeAreaView }      from 'react-native-safe-area-context'
 import * as ImagePicker      from 'expo-image-picker'
+// DateTimePicker loaded per-platform below
 import useThemeStore         from '../../store/themeStore'
 import useAuthStore          from '../../store/authStore'
 import { uploadApi }         from '../../services/api'
@@ -82,6 +83,37 @@ function PickerModal({ visible, title, items, selected, onSelect, onClose, color
   )
 }
 
+
+// ── Platform-safe date picker ─────────────────────────────────
+// Web uses HTML input, native uses @react-native-community/datetimepicker
+let DateTimePicker = null
+if (Platform.OS !== 'web') {
+  try { DateTimePicker = require('@react-native-community/datetimepicker').default } catch {}
+}
+
+function WebDateInput({ value, onChange, colors }) {
+  const d = value || new Date(2000, 0, 1)
+  const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  return (
+    <input
+      type="date"
+      value={iso}
+      max={new Date().toISOString().split('T')[0]}
+      min="1930-01-01"
+      onChange={e => {
+        const parts = e.target.value.split('-')
+        if (parts.length === 3) onChange(null, new Date(+parts[0], +parts[1]-1, +parts[2]))
+      }}
+      style={{
+        width: '100%', padding: '14px 16px', fontSize: 18,
+        borderRadius: 12, border: `1.5px solid ${colors.primary}`,
+        backgroundColor: colors.surface, color: colors.textPrimary,
+        outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
+      }}
+    />
+  )
+}
+
 export default function ProfileSetupScreen({ navigation }) {
   const { colors }      = useThemeStore()
   const { saveProfile } = useAuthStore()
@@ -93,22 +125,21 @@ export default function ProfileSetupScreen({ navigation }) {
   const [lastName,  setLastName]  = useState('')
   const [nickname,  setNickname]  = useState('')
   const [nickErr,   setNickErr]   = useState('')
-  const [bdDay,     setBdDay]     = useState(null)
-  const [bdMonth,   setBdMonth]   = useState(null)  // 0-based
-  const [bdYear,    setBdYear]    = useState(null)
   const [interests, setInterests] = useState([])
   const [saving,    setSaving]    = useState(false)
-  const [picker,    setPicker]    = useState(null) // 'day'|'month'|'year'
 
+  const bdFull    = !!birthday
+  const bdDay     = birthday ? birthday.getDate() : null
+  const bdMonth   = birthday ? birthday.getMonth() : null
+  const bdYear    = birthday ? birthday.getFullYear() : null
   const age       = calcAge(bdDay, bdMonth, bdYear)
   const ageOk     = age !== null && age >= 13
   const ageErr    = age !== null && age < 13
-  const bdFull    = bdDay !== null && bdMonth !== null && bdYear !== null
 
   // East African date format: DD/MM/YYYY
   const bdDisplay = bdFull
     ? `${String(bdDay).padStart(2,'0')}/${String(bdMonth + 1).padStart(2,'0')}/${bdYear}`
-    : 'DD / MM / YYYY'
+    : 'Tap to select birthday'
 
   async function pickPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -136,7 +167,7 @@ export default function ProfileSetupScreen({ navigation }) {
   async function finish() {
     setSaving(true)
     try {
-      const birthday = bdFull
+      const birthdayStr = bdFull
         ? `${bdYear}-${String(bdMonth + 1).padStart(2,'0')}-${String(bdDay).padStart(2,'0')}`
         : null
       const avatarUri = photoUrl || photo
@@ -145,7 +176,7 @@ export default function ProfileSetupScreen({ navigation }) {
         last_name:        lastName.trim(),
         nickname:         nickname.trim(),
         name:             nickname.trim(),
-        birthday,
+        birthday: birthdayStr,
         interests,
         avatar:           avatarUri,
         avatar_url:       avatarUri,
@@ -163,11 +194,8 @@ export default function ProfileSetupScreen({ navigation }) {
 
   const step1Valid = !!photo
   const step2Valid = firstName.trim().length >= 2 && lastName.trim().length >= 1 && nickname.trim().length >= 2
-  const step3Valid = bdFull && ageOk
+  const step3Valid = bdFull && ageOk && !ageErr
 
-  const dayItems   = Array.from({ length: daysInMonth(bdMonth, bdYear) }, (_, i) => ({ value: i + 1, label: String(i + 1).padStart(2, '0') }))
-  const monthItems = MONTHS.map((m, i) => ({ value: i, label: m.n }))
-  const yearItems  = YEARS.map(y => ({ value: y, label: String(y) }))
 
   const TOTAL = 4
 
@@ -243,55 +271,84 @@ export default function ProfileSetupScreen({ navigation }) {
                   Required to access certain events. Format: DD / MM / YYYY
                 </Text>
 
-                {/* Three picker buttons side by side */}
-                <View style={s.bdRow}>
-                  {/* Day */}
-                  <TouchableOpacity
-                    style={[s.bdBtn, { backgroundColor: colors.surface, borderColor: bdDay ? colors.primary : colors.border, flex: 1 }]}
-                    onPress={() => setPicker('day')}
-                  >
-                    <Text style={[s.bdBtnLabel, { color: colors.textHint }]}>Day</Text>
-                    <Text style={[s.bdBtnVal, { color: bdDay ? colors.textPrimary : colors.textHint }]}>
-                      {bdDay !== null ? String(bdDay).padStart(2,'0') : 'DD'}
-                    </Text>
-                  </TouchableOpacity>
+                {/* Single tap button — opens native wheel picker */}
+                <TouchableOpacity
+                  style={[s.bdTapBtn, {
+                    backgroundColor: colors.surface,
+                    borderColor: bdFull ? colors.primary : colors.border,
+                  }]}
+                  onPress={() => setShowPicker(true)}
+                >
+                  <Text style={[s.bdTapLabel, { color: colors.textHint }]}>DATE OF BIRTH</Text>
+                  <Text style={[s.bdTapVal, {
+                    color: bdFull ? colors.textPrimary : colors.textHint,
+                    fontWeight: bdFull ? '800' : '400',
+                  }]}>
+                    {bdDisplay}
+                  </Text>
+                </TouchableOpacity>
 
-                  {/* Month */}
-                  <TouchableOpacity
-                    style={[s.bdBtn, { backgroundColor: colors.surface, borderColor: bdMonth !== null ? colors.primary : colors.border, flex: 2 }]}
-                    onPress={() => setPicker('month')}
-                  >
-                    <Text style={[s.bdBtnLabel, { color: colors.textHint }]}>Month</Text>
-                    <Text style={[s.bdBtnVal, { color: bdMonth !== null ? colors.textPrimary : colors.textHint }]}>
-                      {bdMonth !== null ? MONTHS[bdMonth].n : 'Month'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Year */}
-                  <TouchableOpacity
-                    style={[s.bdBtn, { backgroundColor: colors.surface, borderColor: bdYear ? colors.primary : colors.border, flex: 1.3 }]}
-                    onPress={() => setPicker('year')}
-                  >
-                    <Text style={[s.bdBtnLabel, { color: colors.textHint }]}>Year</Text>
-                    <Text style={[s.bdBtnVal, { color: bdYear ? colors.textPrimary : colors.textHint }]}>
-                      {bdYear || 'YYYY'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Display full date */}
+                {/* Age display */}
                 {bdFull && (
-                  <View style={[s.bdDisplay, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={[s.bdDisplayTxt, { color: ageOk ? colors.primary : colors.error }]}>
-                      {bdDisplay} {ageOk ? `· ${age} years old` : ''}
+                  <View style={[s.ageRow, { backgroundColor: ageOk ? '#22C55E15' : colors.error + '15' }]}>
+                    <Text style={[s.ageTxt, { color: ageOk ? '#22C55E' : colors.error }]}>
+                      {ageOk
+                        ? `${age} years old — eligible to use REDE`
+                        : age < 13
+                        ? `You must be at least 13 years old to use REDE`
+                        : `${age} years old`}
                     </Text>
                   </View>
                 )}
 
-                {ageErr && (
-                  <Text style={[s.errTxt, { color: colors.error }]}>
-                    You must be at least 13 years old to use REDE.
-                  </Text>
+                {/* Web — inline HTML date input */}
+                {Platform.OS === 'web' && showPicker && (
+                  <WebDateInput
+                    value={birthday}
+                    onChange={(e, date) => { if (date) { setBirthday(date); setShowPicker(false) } }}
+                    colors={colors}
+                  />
+                )}
+
+                {/* Android — native inline spinner */}
+                {Platform.OS === 'android' && showPicker && DateTimePicker && (
+                  <DateTimePicker
+                    value={birthday || new Date(2000, 0, 1)}
+                    mode="date"
+                    display="spinner"
+                    maximumDate={new Date()}
+                    minimumDate={new Date(1930, 0, 1)}
+                    onChange={(e, date) => { setShowPicker(false); if (date) setBirthday(date) }}
+                  />
+                )}
+
+                {/* iOS — bottom sheet with wheel */}
+                {Platform.OS === 'ios' && showPicker && DateTimePicker && (
+                  <Modal visible transparent animationType="slide">
+                    <TouchableOpacity style={s.pickerBackdrop} activeOpacity={1} onPress={() => setShowPicker(false)} />
+                    <View style={[s.pickerSheet, { backgroundColor: colors.surface }]}>
+                      <View style={[s.pickerHeader, { borderBottomColor: colors.border }]}>
+                        <TouchableOpacity onPress={() => setShowPicker(false)}>
+                          <Text style={[s.pickerCancel, { color: colors.textSecondary }]}>Cancel</Text>
+                        </TouchableOpacity>
+                        <Text style={[s.pickerTitle, { color: colors.textPrimary }]}>Date of Birth</Text>
+                        <TouchableOpacity onPress={() => setShowPicker(false)}>
+                          <Text style={[s.pickerDone, { color: colors.primary }]}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <DateTimePicker
+                        value={birthday || new Date(2000, 0, 1)}
+                        mode="date"
+                        display="spinner"
+                        maximumDate={new Date()}
+                        minimumDate={new Date(1930, 0, 1)}
+                        style={{ height: 220 }}
+                        onChange={(e, date) => { if (date) setBirthday(date) }}
+                        textColor={colors.textPrimary}
+                        themeVariant="dark"
+                      />
+                    </View>
+                  </Modal>
                 )}
               </>
             )}
@@ -364,21 +421,7 @@ export default function ProfileSetupScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* ── Picker modals ── */}
-          <PickerModal visible={picker === 'day'} title="Select Day"
-            items={dayItems} selected={bdDay}
-            onSelect={v => { setBdDay(v); const max = daysInMonth(bdMonth, bdYear); if (v > max) setBdDay(max) }}
-            onClose={() => setPicker(null)} colors={colors} />
 
-          <PickerModal visible={picker === 'month'} title="Select Month"
-            items={monthItems} selected={bdMonth}
-            onSelect={v => { setBdMonth(v); const max = daysInMonth(v, bdYear); if (bdDay > max) setBdDay(max) }}
-            onClose={() => setPicker(null)} colors={colors} />
-
-          <PickerModal visible={picker === 'year'} title="Select Year"
-            items={yearItems} selected={bdYear}
-            onSelect={v => { setBdYear(v); const max = daysInMonth(bdMonth, v); if (bdDay > max) setBdDay(max) }}
-            onClose={() => setPicker(null)} colors={colors} />
 
         </View>
       </SafeAreaView>
@@ -408,12 +451,17 @@ const s = StyleSheet.create({
   changePhotoTxt:        { fontSize: 13, fontWeight: '700' },
 
   // Birthday
-  bdRow:      { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  bdBtn:      { borderWidth: 1.5, borderRadius: 12, padding: 12, alignItems: 'center' },
-  bdBtnLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4, letterSpacing: 0.3 },
-  bdBtnVal:   { fontSize: 15, fontWeight: '800' },
-  bdDisplay:  { borderWidth: 1, borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 8 },
-  bdDisplayTxt:{ fontSize: 15, fontWeight: '700' },
+  bdTapBtn:     { borderWidth: 1.5, borderRadius: 14, padding: 18, marginBottom: 14 },
+  bdTapLabel:   { fontSize: 10, fontWeight: '800', letterSpacing: 0.6, marginBottom: 6 },
+  bdTapVal:     { fontSize: 20 },
+  ageRow:       { borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 8 },
+  ageTxt:       { fontSize: 13, fontWeight: '600' },
+  pickerBackdrop:{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  pickerSheet:  { borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  pickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  pickerTitle:  { fontSize: 15, fontWeight: '700' },
+  pickerCancel: { fontSize: 15 },
+  pickerDone:   { fontSize: 15, fontWeight: '700' },
 
   // Interests
   interestsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
