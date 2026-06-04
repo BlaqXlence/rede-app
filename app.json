@@ -82,8 +82,7 @@
       [
         "onesignal-expo-plugin",
         {
-          "mode": "production",
-          "devTeam": ""
+          "mode": "production"
         }
       ]
     ],

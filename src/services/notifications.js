@@ -1,29 +1,15 @@
 /**
- * OneSignal push notifications — frontend
- * Uses react-native-onesignal v5 + onesignal-expo-plugin
+ * OneSignal v5 push notifications
+ * react-native-onesignal@5.x + onesignal-expo-plugin@2.x
  * Safe no-op on web
  */
-import { Platform }  from 'react-native'
-import AsyncStorage  from '@react-native-async-storage/async-storage'
+import { Platform } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const ONE_SIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONE_SIGNAL_APP_ID
-const BASE              = process.env.EXPO_PUBLIC_API_URL
+const APP_ID = process.env.EXPO_PUBLIC_ONE_SIGNAL_APP_ID
+const BASE   = process.env.EXPO_PUBLIC_API_URL
 
-let OneSignal    = null
-let LogLevel     = null
-let OSNotificationPermission = null
-
-if (Platform.OS !== 'web') {
-  try {
-    const pkg = require('react-native-onesignal')
-    OneSignal = pkg.OneSignal
-    LogLevel  = pkg.LogLevel
-  } catch (e) {
-    console.log('OneSignal not available:', e.message)
-  }
-}
-
-async function saveTokenToBackend(playerId) {
+async function savePlayerIdToBackend(playerId) {
   try {
     const token = await AsyncStorage.getItem('rede:token')
     if (!token || !playerId) return
@@ -35,73 +21,87 @@ async function saveTokenToBackend(playerId) {
       },
       body: JSON.stringify({ push_token: playerId }),
     })
-    await AsyncStorage.setItem('rede:push_player_id', playerId)
-    console.log('OneSignal player ID saved')
+    await AsyncStorage.setItem('rede:onesignal_id', playerId)
+    console.log('✅ OneSignal player ID saved to backend')
   } catch (err) {
-    console.log('Could not save push token:', err.message)
+    console.log('Could not save player ID:', err.message)
   }
 }
 
 export async function registerForPushNotifications() {
-  if (Platform.OS === 'web' || !OneSignal || !ONE_SIGNAL_APP_ID) return
+  if (Platform.OS === 'web') return
 
   try {
-    // v5 API
-    OneSignal.initialize(ONE_SIGNAL_APP_ID)
-    OneSignal.Debug.setLogLevel(LogLevel?.None ?? 0)
+    const { OneSignal } = require('react-native-onesignal')
 
-    // Request permission
+    // Initialize with your app ID
+    OneSignal.initialize(APP_ID)
+
+    // Request permission — shows dialog on Android 13+ and iOS
     await OneSignal.Notifications.requestPermission(true)
 
-    // Get and save player ID
-    const { userId } = await OneSignal.User.getOnesignalId() || {}
-    if (userId) await saveTokenToBackend(userId)
+    // Get player ID and save to backend
+    const onesignalId = await OneSignal.User.getOnesignalId()
+    if (onesignalId) {
+      await savePlayerIdToBackend(onesignalId)
+    }
 
-    // Listen for changes
-    OneSignal.User.pushSubscription.addEventListener('change', async sub => {
-      if (sub.current?.id) await saveTokenToBackend(sub.current.id)
+    // Watch for subscription changes (catches first-time registration)
+    OneSignal.User.pushSubscription.addEventListener('change', async (sub) => {
+      const id = sub?.current?.id
+      if (id) await savePlayerIdToBackend(id)
     })
 
-    console.log('OneSignal v5 initialized')
+    console.log('✅ OneSignal initialized, App ID:', APP_ID?.slice(0, 8) + '...')
   } catch (err) {
     console.log('OneSignal init error:', err.message)
   }
 }
 
 export function onNotificationTap(handler) {
-  if (Platform.OS === 'web' || !OneSignal) return () => {}
+  if (Platform.OS === 'web') return () => {}
   try {
-    OneSignal.Notifications.addEventListener('click', event => {
-      const data = event.notification?.additionalData || {}
+    const { OneSignal } = require('react-native-onesignal')
+    OneSignal.Notifications.addEventListener('click', (event) => {
+      const data = event?.notification?.additionalData || {}
       handler(data)
     })
-  } catch {}
+  } catch (err) {
+    console.log('OneSignal tap listener error:', err.message)
+  }
   return () => {}
 }
 
 export function onForegroundNotification(handler) {
-  if (Platform.OS === 'web' || !OneSignal) return () => {}
+  if (Platform.OS === 'web') return () => {}
   try {
-    OneSignal.Notifications.addEventListener('foregroundWillDisplay', event => {
-      const notif = event.notification
-      handler({
-        request: {
-          content: {
-            title: notif.title,
-            body:  notif.body,
-            data:  notif.additionalData || {},
+    const { OneSignal } = require('react-native-onesignal')
+    OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
+      const notif = event?.notification
+      if (notif) {
+        handler({
+          request: {
+            content: {
+              title: notif.title,
+              body:  notif.body,
+              data:  notif.additionalData || {},
+            },
           },
-        },
-      })
-      event.preventDefault() // we handle display ourselves
-      event.notification.display()
+        })
+      }
+      event?.preventDefault?.()
+      event?.notification?.display?.()
     })
-  } catch {}
+  } catch (err) {
+    console.log('OneSignal foreground listener error:', err.message)
+  }
   return () => {}
 }
 
 export function clearBadge() {
-  if (Platform.OS !== 'web' && OneSignal) {
-    try { OneSignal.Notifications.clearAll() } catch {}
-  }
+  if (Platform.OS === 'web') return
+  try {
+    const { OneSignal } = require('react-native-onesignal')
+    OneSignal.Notifications.clearAll()
+  } catch {}
 }
