@@ -107,8 +107,11 @@ export default function EditEventScreen({ navigation, route }) {
           </View>
 
           <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <Label text="Cover Photo" colors={colors} />
-            <PhotoUpload uri={photoUri} onSelect={setPhotoUri} onRemove={() => setPhotoUri(event.coverImage)} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, color: colors.textSecondary }}>Cover Photo</Text>
+              {photoUri && <Text style={{ fontSize: 11, color: '#22C55E', fontWeight: '600' }}>Current photo</Text>}
+            </View>
+            <PhotoUpload uri={photoUri} onSelect={setPhotoUri} onRemove={() => setPhotoUri(null)} />
 
             <Label text="Title" colors={colors} />
             <TextInput
@@ -138,6 +141,17 @@ export default function EditEventScreen({ navigation, route }) {
               value={maxAttendees} onChangeText={v => setMaxAttendees(v.replace(/\D/g, ''))}
               placeholder="Leave blank = unlimited" placeholderTextColor={colors.textHint}
               keyboardType="number-pad" selectionColor={colors.primary} underlineColorAndroid="transparent"
+            />
+            <Label text="Venue / Location" colors={colors} />
+            <LocationPicker
+              value={location}
+              onChange={loc => setLocation(loc ? {
+                venueName: loc.venueName,
+                area:      loc.area,
+                city:      loc.city,
+                lat:       loc.lat,
+                lng:       loc.lng,
+              } : null)}
             />
             <View style={{ height: 40 }} />
           </ScrollView>
